@@ -1,4 +1,6 @@
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+      integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
+      crossorigin="anonymous" referrerpolicy="no-referrer"/>
 
 <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
     <div class="container-fluid">
@@ -50,20 +52,24 @@
 
             <ul class="navbar-nav ms-2">
                 {% if current_user.is_authenticated %}
-                <li class="nav-item">
-                    <a class="nav-link text-danger" href="/">
-                        <img src="{{ current_user.avatar }}" width="25" class="rounded-circle"/>
-                        Chào {{ current_user.username }}.
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown"
+                       role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        <img src="{{ current_user.avatar }}" width="30" height="30" class="rounded-circle me-2"
+                             alt="Avatar"/>
+                        {{ current_user.username }}
                     </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-success" href="/logout">Đăng xuất</a>
+                    <ul class="dropdown-menu" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item" href="/profile">Thông tin cá nhân</a></li>
+                        <li><a class="dropdown-item" href="/logout">Đăng xuất</a></li>
+                    </ul>
                 </li>
                 {% else %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="authDropdown" role="button"
                        data-bs-toggle="dropdown" aria-expanded="false">
-                        	<i class="fa-regular fa-user"></i> Tài khoản
+                        <i class="fa-regular fa-user"></i> Tài khoản
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="authDropdown">
                         <li><a class="dropdown-item" href="/login">Đăng nhập</a></li>

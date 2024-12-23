@@ -20,9 +20,11 @@ class User(db.Model, UserMixin):
     avatar = Column(String(100),
                     default='https://res.cloudinary.com/dehkjrhjw/image/upload/v1732357374/admin_ezrocx.jpg')
     user_role = Column(Enum(UserRole), default=UserRole.CUSTOMER)
+
     # Add relationships
     product_imports = relationship('ProductImport', backref='staff', lazy=True)
     orders = relationship('Order', backref='customer', lazy=True)
+    comments = relationship('Comment', backref='user', lazy=True)
 
 
 class Category(db.Model):
@@ -42,7 +44,7 @@ class Product(db.Model):
     author = Column(String(100), nullable=False)
     description = Column(String(255), nullable=True)
     price = Column(Float, default=0)
-    image = Column(String(100), nullable=True)
+    image = Column(String(255), nullable=True)
     active = Column(Boolean, default=True)
     category_id = Column(Integer, ForeignKey(Category.id), nullable=False)
     quantity_in_stock = Column(Integer, default=0)
@@ -50,6 +52,7 @@ class Product(db.Model):
     # Relationships
     import_details = relationship('ProductImportDetail', backref='product', lazy=True)
     order_details = relationship('OrderDetail', backref='product', lazy=True)
+    comments = relationship('Comment', backref='product', lazy=True)
 
     def __str__(self):
         return self.name
@@ -89,12 +92,12 @@ class Order(db.Model):
     __tablename__ = 'order'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    customer_id = Column(Integer, ForeignKey(User.id), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
     order_date = Column(DateTime, default=datetime.now().date())
     status = Column(String(20), default='pending')  # pending, paid, cancelled
     payment_method = Column(String(20))  # online, offline
 
-    # Relationship with order details
+    # Relationship
     details = relationship('OrderDetail', backref='order', lazy=True,
                            cascade="all, delete-orphan")
 
@@ -111,6 +114,14 @@ class OrderDetail(db.Model):
     def update_product_stock(self):
         if self.product:
             self.product.quantity_in_stock -= self.quantity
+
+
+class Comment(db.Model):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(String(255), nullable=False)
+    created_date = db.Column(db.DateTime, default=datetime.now)
+    product_id = Column(Integer, ForeignKey(Product.id), nullable=False)
+    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
 
 
 def init_db():
@@ -146,6 +157,9 @@ def init_db():
                 "name": "Đắc Nhân Tâm",
                 "author": "Dale Carnegie",
                 "category_id": 2,
+                "description": "Đắc nhân tâm của Dale Carnegie là quyển sách nổi tiếng nhất, bán chạy nhất và có tầm ảnh hưởng nhất của mọi thời đại. Tác phẩm đã được chuyển ngữ sang hầu hết các thứ tiếng trên thế giới và có mặt ở hàng trăm quốc gia."
+                [:255],
+                "image": "https://res.cloudinary.com/dehkjrhjw/image/upload/v1734923439/Dac-nhan-tam.jpg",
                 "quantity_in_stock": 100,
                 "price": 76000
             },
@@ -153,6 +167,7 @@ def init_db():
                 "name": "Think and Grow Rich",
                 "author": "Napoleon Hill",
                 "category_id": 3,
+                "image": "https://res.cloudinary.com/dehkjrhjw/image/upload/v1734922939/thinkandgrowrich.webp",
                 "quantity_in_stock": 75,
                 "price": 120000
             },
@@ -160,6 +175,15 @@ def init_db():
                 "name": "Doraemon Tập 1",
                 "author": "Fujiko F. Fujio",
                 "category_id": 4,
+                "image": "https://res.cloudinary.com/dehkjrhjw/image/upload/v1734922983/dorameont1.webp",
+                "quantity_in_stock": 150,
+                "price": 25000
+            },
+            {
+                "name": "Doraemon Tập 2",
+                "author": "Fujiko F. Fujio",
+                "category_id": 4,
+                "image": "https://res.cloudinary.com/dehkjrhjw/image/upload/v1734923531/doraemontap2_mle3zm.jpg",
                 "quantity_in_stock": 150,
                 "price": 25000
             }

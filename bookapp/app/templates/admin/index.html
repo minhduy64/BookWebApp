@@ -1,86 +1,197 @@
 {% extends 'admin/master.html' %}
-
 {% block body %}
+<div class="container mt-4">
+    {% if current_user.is_authenticated %}
+            {% if current_user.user_role == UserRole.ADMIN %}
+                <!-- Admin-Specific Content -->
+                <div class="row">
+                    <div class="col-12 text-center py-1">
+                        <h1>Chào mừng {{ current_user.username }} đến với trang quản trị</h1>
+                        <p class="mb-4">Quản lý thông tin, thống kê và các cài đặt hệ thống từ đây.</p>
+<!--                        <div class="d-flex justify-content-center gap-3">-->
+<!--                            <a href="/admin/category/" class="btn btn-light btn-lg">-->
+<!--                                <i class="fa-solid fa-list"></i> Danh mục-->
+<!--                            </a>-->
+<!--                            <a href="/admin/product/" class="btn btn-light btn-lg">-->
+<!--                                <i class="fa-solid fa-box"></i> Sản phẩm-->
+<!--                            </a>-->
+<!--                            <a href="/admin/user/" class="btn btn-light btn-lg">-->
+<!--                                <i class="fas fa-users"></i> Người dùng-->
+<!--                            </a>-->
+<!--                            <a href="/admin/statsview/" class="btn btn-light btn-lg">-->
+<!--                                <i class="fa-solid fa-chart-simple"></i> Thống kê - báo cáo-->
+<!--                            </a>-->
+<!--                        </div>-->
+                    </div>
+                </div>
+                <!-- Example: Admin-Specific Table or Chart -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Thông Tin Các Thể Loại</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-bordered table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>Thể Loại</th>
+                                            <th>Số Lượng</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for s in categories %}
+                                            <tr>
+                                                <td>{{ s[0] }}</td>
+                                                <td>{{ s[1] }}</td>
+                                                <td>{{ s[2] }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Biểu Đồ Thể Loại</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="myChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let data =[];
+        let labels= [];
+        {% for c in categories %}
+        data.push({{c[2]}})
+        labels.push('{{c[1]}}')
+        {% endfor %}
+        window.onload = function(){
+            const ctx = document.getElementById('myChart');
 
-{% if current_user.is_authenticated %}
-<h1 class="text-info mt-1">CHÀO MỪNG ĐẾN VỚI TRANG QUẢN TRỊ!</h1>
-<h2 class="text-danger">Chào {{ current_user.username }}.</h2>
-
-<div class="row">
-    <div class="col-md-6 col-12">
-        <table class="table">
-            <tr>
-                <th>Id</th>
-                <th>Tên danh mục</th>
-                <th>Số sản phẩm</th>
-            </tr>
-            {% for s in cates %}
-            <tr>
-                <td>{{ s[0] }}</td>
-                <td>{{ s[1] }}</td>
-                <td>{{ s[2] }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    </div>
-    <div class="col-md-6 col-12">
-        <canvas id="myChart"></canvas>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-
-let data = [];
-let labels = [];
- {% for s in cates %}
- data.push({{s[2]}});
- labels.push('{{s[1]}}');
- {% endfor %}
-
-
-function draw(ctx, data, labels) {
-    new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: '# Doanh thu',
-            data: data,
-            borderWidth: 1,
-            backgroundColor: ['red', 'green', 'blue', 'gold', 'brown']
-          }]
-        },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true
-            }
-          }
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '# of Votes',
+                        data: data,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
         }
-      });
-}
+    </script>
+            {% elif current_user.user_role == UserRole.STAFF %}
+                <!-- Staff-Specific Content -->
+                <div class="row">
+                    <div class="col-12 text-center py-1">
+                        <h1>Chào mừng {{ current_user.username }} đến với trang quản lý</h1>
+                        <p class="mb-4">Quản lý sản phẩm và các đơn hàng từ đây.</p>
+                        <div class="d-flex justify-content-center gap-3">
+                            <a href="/admin/importview/" class="btn btn-light btn-lg">
+                                <i class="fa-solid fa-box-open"></i> Nhập sản phẩm
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <h1 class="text-center mb-4">Đăng nhập hệ thống</h1>
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <form method="post" action="/login-admin" id="adminLoginForm" onsubmit="return validateForm()">
+                            <div class="form-floating mb-3">
+                                <label for="username">Tên đăng nhập</label>
+                                <input type="text" class="form-control" id="username" placeholder="Nhập tên đăng nhập" name="username" />
+                                <div class="invalid-feedback" id="usernameError">Vui lòng nhập tên đăng nhập</div>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <label for="pwd">Mật khẩu</label>
+                                <input type="password" class="form-control" id="pwd" placeholder="Nhập mật khẩu" name="password" />
+                                <div class="invalid-feedback" id="passwordError">Vui lòng nhập mật khẩu</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            function validateForm() {
+                let isValid = true;
+                const username = document.getElementById('username');
+                const password = document.getElementById('pwd');
 
-window.onload = function() {
-    const ctx = document.getElementById('myChart');
+                // Reset previous error states
+                username.classList.remove('is-invalid');
+                password.classList.remove('is-invalid');
 
-          draw(ctx, data, labels);
-}
-</script>
+                // Validate username
+                if (!username.value.trim()) {
+                    username.classList.add('is-invalid');
+                    isValid = false;
+                }
 
-{% else %}
-<h1 class="text-center text-info mt-1">ĐĂNG NHẬP QUẢN TRỊ</h1>
-<form method="post" action="/login-admin">
-    <div class="form-floating mb-3 mt-3">
-        <input type="text" class="form-control" id="username" placeholder="Tên đăng nhập" name="username" />
-        <label for="username">Tên đăng nhập</label>
-    </div>
+                // Validate password
+                if (!password.value.trim()) {
+                    password.classList.add('is-invalid');
+                    isValid = false;
+                }
 
-    <div class="form-floating mt-3 mb-3">
-        <input type="password" class="form-control" id="pwd" placeholder="Mật khẩu" name="password" />
-        <label for="pwd">Mật khẩu</label>
-    </div>
-    <button type="submit" class="btn btn-primary">Đăng nhập</button>
-</form>
-{% endif %}
+                return isValid;
+            }
+        </script>
+    {% endif %}
+</div>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+
+<style>
+    .container-fluid {
+        padding: 0;
+    }
+    .row {
+        margin: 0;
+    }
+    .text-center {
+        text-align: center;
+    }
+    .mb-4 {
+        margin-bottom: 1.5rem;
+    }
+    .btn-lg {
+        font-size: 1.2rem;
+        padding: 10px 20px;
+    }
+    .btn-light {
+        background-color: #f8f9fa;
+        color: #343a40;
+        border: 1px solid #ccc;
+    }
+    .btn-light:hover {
+        background-color: #e2e6ea;
+    }
+    .fas {
+        margin-right: 8px;
+    }
+    .gap-3 {
+        gap: 1rem;
+    }
+</style>
 {% endblock %}

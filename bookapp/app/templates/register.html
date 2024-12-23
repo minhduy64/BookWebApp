@@ -1,40 +1,116 @@
 {% extends 'layout/base.html' %}
 
 {% block content %}
-<h1 class="text-center text-danger mt-1">ĐĂNG KÝ NGƯỜI DÙNG</h1>
+<div class="container">
+    <div class="registration-container">
+        <h1 class="page-title">Đăng ký tài khoản</h1>
 
-{% if err_msg %}
-<div class="alert alert-danger">{{ err_msg }}</div>
-{% endif %}
+        {% if err_msg %}
+        <div class="alert alert-danger">{{ err_msg }}</div>
+        {% endif %}
 
-<form method="post" action="/register" enctype="multipart/form-data">
-    <div class="form-floating mb-3 mt-3">
-        <input type="text" class="form-control" id="name" placeholder="Họ tên" name="name" />
-        <label for="name">Họ tên</label>
+        <form method="post" action="/register" enctype="multipart/form-data">
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="name" placeholder="Họ tên" name="name" required/>
+                <label for="name">Họ tên</label>
+            </div>
+
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="username" placeholder="Tên đăng nhập" name="username"
+                       required/>
+                <label for="username">Tên đăng nhập</label>
+            </div>
+
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="password" placeholder="Mật khẩu" name="password"
+                       required/>
+                <label for="password">Mật khẩu</label>
+            </div>
+
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="confirm" placeholder="Xác nhận mật khẩu" name="confirm"
+                       required/>
+                <label for="confirm">Xác nhận mật khẩu</label>
+            </div>
+
+            <div class="form-floating mb-4">
+                <input type="file" class="form-control" id="avatar" name="avatar" accept="image/*" required/>
+                <label for="avatar">Ảnh đại diện</label>
+            </div>
+
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary btn-lg">Đăng ký</button>
+            </div>
+        </form>
+
+        <div class="bookstore-footer">
+            Đã có tài khoản? <a href="/login" class="text-decoration-none" style="color: #b85c38">Đăng nhập</a>
+        </div>
     </div>
+</div>
 
-    <div class="form-floating mb-3 mt-3">
-        <input type="text" class="form-control" id="username" placeholder="Tên đăng nhập" name="username" />
-        <label for="username">Tên đăng nhập</label>
-    </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<style>
+    body {
+        background-color: #f8f5f1;
+        color: #2c1810;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
 
-    <div class="form-floating mt-3 mb-3">
-        <input type="password" class="form-control" id="password" placeholder="Mật khẩu" name="password" />
-        <label for="password">Mật khẩu</label>
-    </div>
+    .registration-container {
+        max-width: 600px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e0d5c1;
+    }
 
-    <div class="form-floating mt-3 mb-3">
-        <input type="password" class="form-control" id="confirm" placeholder="Xác nhận mật khẩu" name="confirm" />
-        <label for="confirm">Xác nhận mật khẩu</label>
-    </div>
+    .page-title {
+        color: #343a40;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        text-align: center;
+        border-bottom: 2px solid #343a40;
+        padding-bottom: 1rem;
+    }
 
-    <div class="form-floating mt-3 mb-3">
-        <input type="file" class="form-control" id="avatar" name="avatar" accept="image/*" required/>
-        <label for="confirm">Ảnh đại diện</label>
-    </div>
+    .bookstore-footer{
+        text-align: center;
+        padding-top: 10px;
+    }
+    .form-floating {
+        margin-bottom: 1.5rem !important;
+    }
 
-    <div class="form-floating mt-3 mb-3 d-grid">
-        <button type="submit" class="btn btn-primary btn-lg">Đăng ký</button>
-    </div>
-</form>
+
+    .form-control:focus {
+        border-color: #b85c38;
+        box-shadow: 0 0 0 0.25rem rgba(184, 92, 56, 0.25);
+    }
+
+    .btn-primary {
+        background-color: #b85c38;
+        border-color: #b85c38;
+        padding: 0.8rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background-color: #8b4429;
+        border-color: #8b4429;
+        transform: translateY(-2px);
+    }
+
+    .alert-danger {
+        background-color: #fff1f1;
+        border-color: #ffcdd2;
+        color: #c62828;
+    }
+
+
+</style>
 {% endblock %}

@@ -5,13 +5,13 @@
     {% if products %}
     <div class="row g-5">
         {% for p in products %}
-        <div class="col-md-4 col-5">
+        <div class="col-md-4 col-3">
             <div class="book-card h-100">
                 <div class="book-cover">
                     <img src="{{ p.image }}" alt="{{ p.name }}" class="book-image">
                     <div class="book-overlay">
-                        <a href="/product/{{ p.id }}" class="btn btn-light btn-sm">Xem chi tiết</a>
-                        <button class="btn btn-primary btn-sm mt-2" onclick="addToCart({{p.id}}, '{{ p.name }}', {{ p.price }})">Thêm vào giỏ</button>
+                        <a href="/products/{{ p.id }}" class="btn btn-light btn-sm">Xem chi tiết</a>
+                        <button class="btn btn-primary btn-sm mt-2" onclick="addToCart({{p.id}}, '{{ p.name }}', {{ p.price }},'{{ p.image }}')">Thêm vào giỏ</button>
                     </div>
                 </div>
                 <div class="book-info">

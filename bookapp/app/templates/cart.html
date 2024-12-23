@@ -1,46 +1,119 @@
 {% extends 'layout/base.html' %}
-
 {% block content %}
-<h1 class="text-center text-success mt-1">GIỎ HÀNG</h1>
+<div class="container py-5">
+    {% if 'cart' in session %}
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col" class="text-center">ID</th>
+                            <th scope="col" style="min-width: 200px;">Sản phẩm</th>
+                            <th scope="col" class="text-end">Đơn giá</th>
+                            <th scope="col" class="text-center" style="width: 150px;">Số lượng</th>
+                            <th scope="col" class="text-center">Thành tiền</th>
+                            <th scope="col" class="text-center">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in session['cart'].values() %}
+                        <tr id="cart{{ c.id }}">
+                            <td class="text-center">{{ c.id }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ c.image }}" class="rounded me-3" style="width: 64px; height: 64px; object-fit: contain;" alt="{{ c.name }}">
+                                    <h6 class="mb-0">{{ c.name }}</h6>
+                                </div>
+                            </td>
+                            <td class="text-end">{{ "{:,.0f}".format(c.price) }} VNĐ</td>
+                            <td>
+                                <div class="input-group">
+                                    <input type="number" class="form-control text-center quantity-input" min="1" value="{{ c.quantity }}" onblur="updateCart({{ c.id }}, this)" style="width: 80px;">
+                                </div>
+                            </td>
+                            <td class="text-end">{{ "{:,.0f}".format(c.price * c.quantity) }} ₫</td>
+                            <td class="text-center">
+                                <button class="btn btn-outline-danger btn-sm" onclick="deleteCart({{ c.id }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
 
-{% if 'cart' in session %}
-<table class="table">
-    <tr>
-        <th>ID</th>
-        <th>Tên sản phẩm</th>
-        <th>Đơn giá</th>
-        <th>Số lượng</th>
-        <th></th>
-    </tr>
-    {% for c in session['cart'].values() %}
-    <tr id="cart{{ c.id }}">
-        <td>{{ c.id }}</td>
-        <td>{{ c.name }}</td>
-        <td>{{ "{:,.0f}".format(c.price) }} VNĐ</td>
-        <td>
-            <input onblur="updateCart({{ c.id }}, this)" type="number" min="1" value="{{ c.quantity }}" class="form-control"/>
-        </td>
-        <td>
-            <button class="btn btn-danger" onclick="deleteCart({{ c.id }})">&times;</button>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <a href="/" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-left"></i> Tiếp tục mua sắm
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Tạm tính:</span>
+                                <span class="cart-amount fw-bold">{{ "{:,.0f}".format(count_cart.total_amount) }} VNĐ</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span>Tổng số lượng:</span>
+                                <span class="cart-counter fw-bold">{{ count_cart.total_quantity }}</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="h5">Tổng cộng:</span>
+                                <span class="h5 cart-amount">{{ "{:,.0f}".format(count_cart.total_amount) }} ₫</span>
+                            </div>
 
-<div class="alert alert-info">
-    <h3>Tổng tiền: <span class="cart-amount">{{ "{:,.0f}".format(count_cart.total_amount) }}</span> VNĐ</h3>
-    <h3>Tổng số lượng: <span class="cart-counter">{{ count_cart.total_quantity }}</span></h3>
+                            {% if current_user.is_authenticated %}
+                            <button class="btn btn-primary w-100" onclick="pay()">
+                                Tiến hành thanh toán
+                            </button>
+                            {% else %}
+                            <div class="alert alert-warning mb-0">
+                                Vui lòng <a href="/login?next=/cart" class="alert-link">đăng nhập</a> để thanh toán!
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-cart-x display-1 text-muted"></i>
+        <h3 class="mt-3">Giỏ hàng trống</h3>
+        <p class="text-muted">Không có sản phẩm nào trong giỏ hàng của bạn</p>
+        <a href="/" class="btn btn-primary mt-3">Tiếp tục mua sắm</a>
+    </div>
+    {% endif %}
 </div>
-
-{% if current_user.is_authenticated %}
-<div class="mt-1">
-    <button class="btn btn-success" onclick="pay()">Thanh toán</button>
-</div>
-{% else %}
-    <p>Vui lòng <a href="/login?next=/cart">đăng nhập</a> để thanh toán!</p>
-{% endif %}
-{% else %}
-    <div class="alert alert-info mt-1">Không có sản phẩm trong giỏ!</div>
-{% endif %}
-
 {% endblock %}
+
+<style>
+    /* Custom styling for the quantity input */
+    .quantity-input {
+        width: 80px;
+        text-align: center;
+    }
+
+    .input-group .btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 5px;
+        font-size: 18px;
+    }
+
+    .input-group .form-control {
+        width: 60px;
+    }
+
+    /* Add focus styles */
+    .quantity-input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    }
+</style>

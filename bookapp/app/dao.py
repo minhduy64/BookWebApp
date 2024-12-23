@@ -1,4 +1,8 @@
-from app.models import Category, Product, User, Order, OrderDetail
+from datetime import datetime
+
+from sqlalchemy import func
+
+from app.models import Category, Product, User, Order, OrderDetail, Comment, ProductImport, ProductImportDetail
 from app import app, db
 import hashlib
 import cloudinary.uploader
@@ -9,20 +13,20 @@ def load_categories():
     return Category.query.order_by('id').all()
 
 
-def load_products(cate_id=None, kw=None, page=1):
-    query = Product.query
+def load_products(kw=None, category_id=None, page=1):
+    products = Product.query
 
     if kw:
-        query = query.filter(Product.title.contains(kw))
+        products = products.filter(Product.name.contains(kw))
 
-    if cate_id:
-        query = query.filter(Product.category_id == cate_id)
+    if category_id:
+        products = products.filter(Product.category_id == category_id)
 
-    page_size = app.config['PAGE_SIZE']
+    page_size = app.config["PAGE_SIZE"]
     start = (page - 1) * page_size
-    query = query.slice(start, start + page_size)
+    products = products.slice(start, start + page_size)
 
-    return query.all()
+    return products.all()
 
 
 def import_products(staff_id, products_data):
@@ -67,6 +71,10 @@ def get_user_by_id(user_id):
     return User.query.get(user_id)
 
 
+def get_user_by_username(username):
+    return User.query.get(username)
+
+
 def add_user(name, username, password, avatar=None):
     password = str(hashlib.md5(password.strip().encode('utf-8')).hexdigest())
 
@@ -81,12 +89,141 @@ def add_user(name, username, password, avatar=None):
 
 def add_order(cart):
     if cart:
-        r = Order(user=current_user)
+        r = Order(user_id=current_user.id)
         db.session.add(r)
 
         for c in cart.values():
-            d = OrderDetail(quantity=c['quantity'], unit_price=c['price'],
-                            product_id=c['id'], receipt=r)
+            d = OrderDetail(
+                quantity=c['quantity'],
+                price=c['price'],
+                product_id=c['id'],
+                order=r
+            )
             db.session.add(d)
 
         db.session.commit()
+
+
+def revenue_stats(kw=None):
+    total_revenue_query = db.session.query(func.sum(OrderDetail.price * OrderDetail.quantity)).scalar() or 1
+    query = db.session.query(
+        Product.id,
+        Product.name,
+        func.sum(OrderDetail.price * OrderDetail.quantity),
+        func.sum(OrderDetail.quantity),
+        (func.sum(OrderDetail.price * OrderDetail.quantity) / total_revenue_query * 100).label('proportion')
+    ).join(OrderDetail, OrderDetail.product_id == Product.id)
+    if kw:
+        query = query.filter(Product.name.contains(kw))
+
+    return query.group_by(Product.id).all()
+
+
+def revenue_month_stats(time='month', year=datetime.now().year):
+    total_revenue_query = db.session.query(func.sum(OrderDetail.price * OrderDetail.quantity)).scalar() or 1
+    query = db.session.query(
+        func.extract('month', Order.order_date),
+        func.sum(OrderDetail.quantity * OrderDetail.price),
+        func.sum(OrderDetail.quantity),
+        (func.sum(OrderDetail.quantity * OrderDetail.price) / total_revenue_query * 100).label('proportion')
+    ).join(OrderDetail, OrderDetail.order_id == Order.id) \
+        .filter(func.extract('year', Order.order_date) == year) \
+        .group_by(func.extract('month', Order.order_date))
+    return query.all()
+
+
+def stats_products():
+    return (db.session.query(Category.id, Category.name, func.count(Product.id))
+            .join(Product, Product.category_id.__eq__(Category.id), isouter=True)).group_by(Category.id).all()
+
+
+def revenue_month_stats_by_category(time='month', year=datetime.now().year):
+    total_revenue_query = db.session.query(func.sum(OrderDetail.price * OrderDetail.quantity)).scalar() or 1
+    query = db.session.query(
+        Category.name,
+        func.extract('month', Order.order_date),
+        func.sum(OrderDetail.price * OrderDetail.quantity),
+        func.sum(OrderDetail.quantity),
+        (func.sum(OrderDetail.price * OrderDetail.quantity) / total_revenue_query * 100).label('proportion')
+    ).join(Product, Product.category_id == Category.id) \
+        .join(OrderDetail, OrderDetail.product_id == Product.id) \
+        .join(Order, Order.id == OrderDetail.order_id) \
+        .filter(func.extract('year', Order.order_date) == year) \
+        .group_by(Category.name, func.extract('month', Order.order_date)) \
+        .order_by(Category.name, func.extract('month', Order.order_date))
+    return query.all()
+
+
+def get_products_by_id(id):
+    return Product.query.get(id)
+
+
+def load_comments(product_id):
+    return Comment.query.filter(Comment.product_id.__eq__(product_id))
+
+
+def add_comment(content, product_id):
+    c = Comment(content=content,
+                product_id=product_id,
+                user=current_user,
+                created_date=datetime.now())
+    db.session.add(c)
+    db.session.commit()
+    return c
+
+
+## ##
+def import_products(staff_id, products_data):
+
+    total_import_quantity = sum(product['quantity'] for product in products_data)
+    if total_import_quantity < 150:
+        return False, "Total import quantity must be at least 150 books"
+
+
+    for product_data in products_data:
+        product = Product.query.get(product_data['product_id'])
+        if not product:
+            return False, f"Product with ID {product_data['product_id']} not found"
+
+        current_quantity = product.quantity_in_stock
+        import_quantity = product_data['quantity']
+
+
+        if current_quantity >= 300:
+            return False, f"Cannot import '{product.name}' - current quantity ({current_quantity}) is already at maximum (300)"
+
+
+        if current_quantity + import_quantity > 300:
+            allowed_import = 300 - current_quantity
+            return False, f"Cannot import {import_quantity} units of '{product.name}' - would exceed 300 limit. Maximum allowed import: {allowed_import}"
+
+
+    try:
+        import_receipt = ProductImport(staff_id=staff_id)
+        db.session.add(import_receipt)
+
+
+        for product_data in products_data:
+            detail = ProductImportDetail(
+                import_receipt=import_receipt,
+                product_id=product_data['product_id'],
+                quantity=product_data['quantity']
+            )
+            db.session.add(detail)
+
+
+            product = Product.query.get(product_data['product_id'])
+            product.quantity_in_stock += product_data['quantity']
+
+        import_receipt.calculate_total_quantity()
+        db.session.commit()
+        return True, "Import successful"
+
+    except Exception as e:
+        db.session.rollback()
+        return False, f"Error during import: {str(e)}"
+
+
+if __name__ == '__main__':
+    with app.app_context():
+        app.run(debug=True)

@@ -55,7 +55,6 @@ body {
 
 /* For the search bar */
 .form-control {
-    max-width: 250px;
     border-radius: 5px;
 }
 
