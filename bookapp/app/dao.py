@@ -80,20 +80,33 @@ def get_user_by_username(username):
     return User.query.get(username)
 
 
-def add_user(name, username, password, email, avatar=None):
+def add_user(name, username, password, email, phone_number=None, avatar=None):
+
     if is_username_taken(username):
         return False, "Tên tài khoản đã tồn tại, hãy chọn tên tài khoản khác"
 
-    password = str(hashlib.md5(password.strip().encode('utf-8')).hexdigest())
-    u = User(name=name, username=username, password=password, email=email)
+    try:
+        password = str(hashlib.md5(password.strip().encode('utf-8')).hexdigest())
 
-    if avatar:
-        res = cloudinary.uploader.upload(avatar)
-        u.avatar = res.get('secure_url')
+        u = User(
+            name=name,
+            username=username,
+            password=password,
+            email=email,
+            phone_number=phone_number
+        )
 
-    db.session.add(u)
-    db.session.commit()
-    return True, "Đăng ký tài khoản thành công"
+        if avatar:
+            res = cloudinary.uploader.upload(avatar)
+            u.avatar = res.get('secure_url')
+
+        db.session.add(u)
+        db.session.commit()
+        return True, "Đăng ký tài khoản thành công"
+
+    except Exception as e:
+        db.session.rollback()
+        return False, f"Lỗi khi đăng ký: {str(e)}"
 
 
 def is_username_taken(username):

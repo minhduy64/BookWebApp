@@ -32,7 +32,11 @@
                 <input type="text" class="form-control" id="username" placeholder="Tên đăng nhập" name="username" required/>
                 <label for="username">Tên đăng nhập</label>
             </div>
-
+            <div class="form-floating mb-3">
+                <input type="tel" class="form-control" id="phone_number" placeholder="Số điện thoại" name="phone_number"
+                        pattern="[0-9]{10,11}" title="Vui lòng nhập số điện thoại từ 10-11 số" required/>
+                <label for="phone_number">Số điện thoại</label>
+            </div>
             <div class="form-floating mb-3">
                 <input type="password" class="form-control" id="password" placeholder="Mật khẩu" name="password" required/>
                 <label for="password">Mật khẩu</label>

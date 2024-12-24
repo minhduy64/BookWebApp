@@ -18,12 +18,13 @@ class User(db.Model, UserMixin):
     email = Column(String(100), nullable=True)
     username = Column(String(50), nullable=False, unique=True)
     password = Column(String(50), nullable=False)
+    phone_number = Column(String(15), nullable=True)
     avatar = Column(String(100),
                     default='https://res.cloudinary.com/dehkjrhjw/image/upload/v1732357374/admin_ezrocx.jpg')
     user_role = Column(Enum(UserRole), default=UserRole.CUSTOMER)
 
     # Add relationships
-    # Remove the duplicate staff backref
+
     product_imports = relationship('ProductImport', backref='created_by', lazy=True)
     orders = relationship('Order', backref='customer', lazy=True)
     comments = relationship('Comment', backref='user', lazy=True)
@@ -163,6 +164,7 @@ if __name__ == '__main__':
                 name='admin',
                 email='admin@gmail.com',
                 username='admin',
+                phone_number='0123456789',
                 password=str(hashlib.md5('123456'.encode('utf-8')).hexdigest()),
                 user_role=UserRole.ADMIN
             )
