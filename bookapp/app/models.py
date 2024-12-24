@@ -70,7 +70,7 @@ class ProductImport(db.Model):
 
     # Remove duplicate staff relationship since it's defined in User class
     details = relationship('ProductImportDetail', backref='import_receipt', lazy=True,
-                         cascade="all, delete-orphan")
+                           cascade="all, delete-orphan")
 
     def calculate_total_quantity(self):
         self.total_quantity = sum(detail.quantity for detail in self.details)
@@ -87,8 +87,6 @@ class ProductImportDetail(db.Model):
     def update_product_stock(self):
         if self.product:
             self.product.quantity_in_stock += self.quantity
-
-
 
 
 class OrderStatus(RoleEnum):
@@ -153,12 +151,13 @@ class Comment(db.Model):
     user_id = Column(Integer, ForeignKey(User.id), nullable=False)
 
 
-def init_db():
+if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
         if not User.query.filter_by(username='admin').first():
             import hashlib
+
             admin = User(
                 name='admin',
                 username='admin',
@@ -223,7 +222,3 @@ def init_db():
             db.session.add(product)
 
         db.session.commit()
-
-
-if __name__ == '__main__':
-    init_db()
