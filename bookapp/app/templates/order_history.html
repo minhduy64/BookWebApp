@@ -1,0 +1,137 @@
+{% extends 'layout/base.html' %}
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">Lịch sử đơn hàng</h2>
+            
+            {% if current_user.orders %}
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col">Mã đơn hàng</th>
+                                    <th scope="col">Ngày đặt</th>
+                                    <th scope="col">Phương thức</th>
+                                    <th scope="col">Tổng tiền</th>
+                                    <th scope="col">Trạng thái</th>
+                                    <th scope="col">Chi tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in current_user.orders|sort(attribute='order_date', reverse=true) %}
+                                <tr>
+                                    <td>#{{ order.id }}</td>
+                                    <td>{{ order.order_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        {% if order.payment_method.name == 'STORE_PICKUP' %}
+                                        <span class="badge bg-primary">Nhận tại cửa hàng</span>
+                                        {% else %}
+                                        <span class="badge bg-info">Giao hàng online</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">{{ "{:,.0f}".format(order.total_amount) }} ₫</td>
+                                    <td>
+                                        {% if order.status.name == 'PENDING' %}
+                                            <span class="badge bg-warning">Chờ xử lý</span>
+                                        {% elif order.status.name == 'CONFIRMED' %}
+                                            <span class="badge bg-info">Đã xác nhận</span>
+                                        {% elif order.status.name == 'PAID' %}
+                                            <span class="badge bg-primary">Đã thanh toán</span>
+                                        {% elif order.status.name == 'SHIPPING' %}
+                                            <span class="badge bg-secondary">Đang vận chuyển</span>
+                                        {% elif order.status.name == 'COMPLETED' %}
+                                            <span class="badge bg-success">Hoàn thành</span>
+                                        {% elif order.status.name == 'CANCELLED' %}
+                                            <span class="badge bg-danger">Đã hủy</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-outline-primary btn-sm" 
+                                                data-bs-toggle="collapse" 
+                                                data-bs-target="#orderDetails{{ order.id }}">
+                                            <i class="bi bi-eye"></i> Xem
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="6" class="p-0">
+                                        <div class="collapse" id="orderDetails{{ order.id }}">
+                                            <div class="card card-body border-0">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Sản phẩm</th>
+                                                                <th class="text-end">Đơn giá</th>
+                                                                <th class="text-center">Số lượng</th>
+                                                                <th class="text-end">Thành tiền</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for detail in order.details %}
+                                                            <tr>
+                                                                <td>
+                                                                    <div class="d-flex align-items-center">
+                                                                        <img src="{{ detail.product.image }}" 
+                                                                             class="rounded me-3" 
+                                                                             style="width: 48px; height: 48px; object-fit: contain;" 
+                                                                             alt="{{ detail.product.name }}">
+                                                                        <div>
+                                                                            <h6 class="mb-0">{{ detail.product.name }}</h6>
+                                                                            <small class="text-muted">{{ detail.product.author }}</small>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td class="text-end">{{ "{:,.0f}".format(detail.price) }} ₫</td>
+                                                                <td class="text-center">{{ detail.quantity }}</td>
+                                                                <td class="text-end">{{ "{:,.0f}".format(detail.price * detail.quantity) }} ₫</td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                        <tfoot>
+                                                            <tr>
+                                                                <td colspan="3" class="text-end"><strong>Tổng cộng:</strong></td>
+                                                                <td class="text-end"><strong>{{ "{:,.0f}".format(order.total_amount) }} ₫</strong></td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    </table>
+                                                </div>
+                                                
+                                                {% if order.payment_method.name == 'STORE_PICKUP' and order.pickup_deadline %}
+                                                <div class="alert alert-info mt-3 mb-0">
+                                                    <i class="bi bi-info-circle"></i>
+                                                    Vui lòng đến nhận sách trước: 
+                                                    <strong>{{ order.pickup_deadline.strftime('%d/%m/%Y %H:%M') }}</strong>
+                                                </div>
+                                                {% elif order.payment_method.name == 'ONLINE' and order.delivery_address %}
+                                                <div class="alert alert-info mt-3 mb-0">
+                                                    <i class="bi bi-geo-alt"></i>
+                                                    Địa chỉ giao hàng: <strong>{{ order.delivery_address }}</strong>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-bag-x display-1 text-muted"></i>
+                <h3 class="mt-3">Chưa có đơn hàng nào</h3>
+                <p class="text-muted">Bạn chưa có đơn hàng nào trong lịch sử mua sắm</p>
+                <a href="/" class="btn btn-primary mt-3">Tiếp tục mua sắm</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

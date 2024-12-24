@@ -3,6 +3,16 @@
 {% block content %}
 <div class="container">
     <div class="registration-container">
+        {% if success_msg %}
+        <div class="success-container">
+            <div class="alert alert-success">{{ success_msg }}</div>
+            <h2 class="welcome-title">Chào mừng {{ user.name }}!</h2>
+            <p class="text-center mb-4">Vui lòng đăng nhập để tiếp tục</p>
+            <div class="d-grid">
+                <a href="/login" class="btn btn-primary btn-lg">Đăng nhập ngay</a>
+            </div>
+        </div>
+        {% else %}
         <h1 class="page-title">Đăng ký tài khoản</h1>
 
         {% if err_msg %}
@@ -16,20 +26,17 @@
             </div>
 
             <div class="form-floating mb-3">
-                <input type="text" class="form-control" id="username" placeholder="Tên đăng nhập" name="username"
-                       required/>
+                <input type="text" class="form-control" id="username" placeholder="Tên đăng nhập" name="username" required/>
                 <label for="username">Tên đăng nhập</label>
             </div>
 
             <div class="form-floating mb-3">
-                <input type="password" class="form-control" id="password" placeholder="Mật khẩu" name="password"
-                       required/>
+                <input type="password" class="form-control" id="password" placeholder="Mật khẩu" name="password" required/>
                 <label for="password">Mật khẩu</label>
             </div>
 
             <div class="form-floating mb-3">
-                <input type="password" class="form-control" id="confirm" placeholder="Xác nhận mật khẩu" name="confirm"
-                       required/>
+                <input type="password" class="form-control" id="confirm" placeholder="Xác nhận mật khẩu" name="confirm" required/>
                 <label for="confirm">Xác nhận mật khẩu</label>
             </div>
 
@@ -46,10 +53,11 @@
         <div class="bookstore-footer">
             Đã có tài khoản? <a href="/login" class="text-decoration-none" style="color: #b85c38">Đăng nhập</a>
         </div>
+        {% endif %}
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
 <style>
     body {
         background-color: #f8f5f1;
@@ -67,6 +75,17 @@
         border: 1px solid #e0d5c1;
     }
 
+    .success-container {
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+
+    .welcome-title {
+        color: #343a40;
+        font-size: 1.8rem;
+        margin: 1.5rem 0;
+    }
+
     .page-title {
         color: #343a40;
         font-size: 2rem;
@@ -77,14 +96,14 @@
         padding-bottom: 1rem;
     }
 
-    .bookstore-footer{
+    .bookstore-footer {
         text-align: center;
         padding-top: 10px;
     }
+
     .form-floating {
         margin-bottom: 1.5rem !important;
     }
-
 
     .form-control:focus {
         border-color: #b85c38;
@@ -110,7 +129,5 @@
         border-color: #ffcdd2;
         color: #c62828;
     }
-
-
 </style>
 {% endblock %}

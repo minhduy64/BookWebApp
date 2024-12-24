@@ -6,7 +6,7 @@
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="/" class="text-decoration-none">Home</a></li>
-            <li class="breadcrumb-item"><a href="/books" class="text-decoration-none">Books</a></li>
+            <li class="breadcrumb-item"><a href="/?category_id={{ product.category_id }}" class="text-decoration-none">{{ product.category.name }}</a></li>
             <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
         </ol>
     </nav>
@@ -23,7 +23,7 @@
                              alt="{{ product.name }}"
                              style="height: 500px; object-fit: cover;" />
                     {% else %}
-                        <img src="/static/images/default-product.jpg"
+                        <img src="#"
                              class="card-img-top rounded-top"
                              alt="Default product image"
                              style="height: 500px; object-fit: cover;" />
@@ -37,7 +37,7 @@
             <div class="mb-4">
                 <h1 class="display-5 fw-bold mb-3">{{ product.name }}</h1>
                 <div class="d-flex align-items-center mb-3">
-                    <img src="{{ product.author_avatar|default('/static/images/default-avatar.jpg') }}"
+                    <img src="#"
                          class="rounded-circle me-2"
                          style="width: 40px; height: 40px; object-fit: cover;"
                          alt="{{ product.author }}" />

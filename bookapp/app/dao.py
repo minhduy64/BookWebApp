@@ -1,12 +1,16 @@
+import atexit
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import func, event
 
-from app.models import Category, Product, User, Order, OrderDetail, Comment, ProductImport, ProductImportDetail
+from app.models import Category, Product, User, Order, OrderDetail, Comment, ProductImport, ProductImportDetail, \
+    OrderStatus, PaymentMethod
 from app import app, db
 import hashlib
 import cloudinary.uploader
 from flask_login import current_user
+from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
 
 
 def load_categories():
@@ -76,15 +80,23 @@ def get_user_by_username(username):
 
 
 def add_user(name, username, password, avatar=None):
-    password = str(hashlib.md5(password.strip().encode('utf-8')).hexdigest())
+    if is_username_taken(username):
+        return False, "Tên tài khoản đã tồn tại, hãy chọn tên tài khoản khác"
 
+    password = str(hashlib.md5(password.strip().encode('utf-8')).hexdigest())
     u = User(name=name, username=username, password=password)
+
     if avatar:
         res = cloudinary.uploader.upload(avatar)
         u.avatar = res.get('secure_url')
 
     db.session.add(u)
     db.session.commit()
+    return True, "Đăng ký tài khoản  thành công"
+
+
+def is_username_taken(username):
+    return User.query.filter_by(username=username).first() is not None
 
 
 def add_order(cart):
@@ -174,48 +186,63 @@ def add_comment(content, product_id):
 
 ## ##
 def import_products(staff_id, products_data):
+    """
+    Import products with quantity validation and updates
 
+    Args:
+        staff_id: ID of the staff member performing the import
+        products_data: List of dicts with product_id and quantity
+
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    # Check minimum total import quantity
     total_import_quantity = sum(product['quantity'] for product in products_data)
     if total_import_quantity < 150:
         return False, "Total import quantity must be at least 150 books"
 
-
-    for product_data in products_data:
-        product = Product.query.get(product_data['product_id'])
-        if not product:
-            return False, f"Product with ID {product_data['product_id']} not found"
-
-        current_quantity = product.quantity_in_stock
-        import_quantity = product_data['quantity']
-
-
-        if current_quantity >= 300:
-            return False, f"Cannot import '{product.name}' - current quantity ({current_quantity}) is already at maximum (300)"
-
-
-        if current_quantity + import_quantity > 300:
-            allowed_import = 300 - current_quantity
-            return False, f"Cannot import {import_quantity} units of '{product.name}' - would exceed 300 limit. Maximum allowed import: {allowed_import}"
-
-
     try:
-        import_receipt = ProductImport(staff_id=staff_id)
+        # Create import receipt first
+        import_receipt = ProductImport(
+            staff_id=staff_id,
+            total_quantity=total_import_quantity
+        )
         db.session.add(import_receipt)
 
-
+        # Validate and process each product
         for product_data in products_data:
+            product = Product.query.get(product_data['product_id'])
+            if not product:
+                db.session.rollback()
+                return False, f"Product with ID {product_data['product_id']} not found"
+
+            current_quantity = product.quantity_in_stock
+            import_quantity = product_data['quantity']
+
+            # Validate maximum quantity
+            if current_quantity >= 300:
+                db.session.rollback()
+                return False, f"Cannot import '{product.name}' - current quantity ({current_quantity}) is already at maximum (300)"
+
+            new_quantity = current_quantity + import_quantity
+            if new_quantity > 300:
+                db.session.rollback()
+                return False, f"Cannot import {import_quantity} units of '{product.name}' - would exceed 300 limit (current: {current_quantity})"
+
+            # Create import detail
             detail = ProductImportDetail(
                 import_receipt=import_receipt,
-                product_id=product_data['product_id'],
-                quantity=product_data['quantity']
+                product_id=product.id,
+                quantity=import_quantity
             )
             db.session.add(detail)
 
+            # Update product stock
+            product.quantity_in_stock = new_quantity
 
-            product = Product.query.get(product_data['product_id'])
-            product.quantity_in_stock += product_data['quantity']
-
+        # Calculate total quantity for the import receipt
         import_receipt.calculate_total_quantity()
+
         db.session.commit()
         return True, "Import successful"
 
@@ -223,6 +250,101 @@ def import_products(staff_id, products_data):
         db.session.rollback()
         return False, f"Error during import: {str(e)}"
 
+
+def import_product_with_details(staff_id, product_data, import_quantity):
+    """
+    Import a new product or update existing one with import details
+    """
+    try:
+        # Create new product
+        product = Product(
+            name=str(product_data['name']),
+            author=str(product_data['author']),
+            description=str(product_data.get('description', '')),
+            price=float(product_data['price']),
+            image=str(product_data.get('image', '')),
+            active=bool(product_data.get('active', True)),
+            category_id=int(product_data['category_id']),
+            quantity_in_stock=0  # Will be updated through import detail
+        )
+
+        db.session.add(product)
+        db.session.flush()  # Get product ID without committing
+
+        # Create import receipt
+        import_receipt = ProductImport(
+            staff_id=staff_id,
+            total_quantity=import_quantity,
+            notes=f"Initial import for product: {product.name}"
+        )
+        db.session.add(import_receipt)
+        db.session.flush()
+
+        # Create import detail
+        detail = ProductImportDetail(
+            import_id=import_receipt.id,
+            product_id=product.id,
+            quantity=import_quantity
+        )
+        db.session.add(detail)
+
+        # Update product stock directly
+        product.quantity_in_stock = import_quantity
+
+        db.session.commit()
+        return True, "Product imported successfully"
+
+    except ValueError as e:
+        db.session.rollback()
+        return False, f"Invalid data format: {str(e)}"
+    except Exception as e:
+        db.session.rollback()
+        return False, f"Error during import: {str(e)}"
+
+
+@event.listens_for(ProductImportDetail, 'after_insert')
+def update_stock_after_import(mapper, connection, target):
+    """Update product stock after a new import detail is created"""
+    if target.product:
+        target.product.quantity_in_stock += target.quantity
+
+
+@event.listens_for(ProductImportDetail, 'before_delete')
+def revert_stock_before_delete(mapper, connection, target):
+    """Revert product stock before an import detail is deleted"""
+    if target.product:
+        target.product.quantity_in_stock -= target.quantity
+
+
+def cancel_expired_orders():
+    with app.app_context():
+        # Find all pending store pickup orders that are past their deadline
+        expired_orders = Order.query.filter(
+            Order.status == OrderStatus.PENDING,
+            Order.payment_method == PaymentMethod.STORE_PICKUP,
+            Order.pickup_deadline < datetime.now()
+        ).all()
+
+        for order in expired_orders:
+            # Return products to inventory
+            for detail in order.details:
+                product = Product.query.get(detail.product_id)
+                if product:
+                    product.quantity_in_stock += detail.quantity
+
+            # Update order status
+            order.status = OrderStatus.CANCELLED
+
+        db.session.commit()
+
+
+# Set up the scheduler
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=cancel_expired_orders, trigger="interval", hours=1)
+scheduler.start()
+
+# Shut down the scheduler when exiting the app
+atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == '__main__':
     with app.app_context():

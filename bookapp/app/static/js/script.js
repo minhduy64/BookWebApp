@@ -1,12 +1,52 @@
-function updateCartUI(data) {
-    let counters = document.getElementsByClassName("cart-counter");
-    for (let c of counters)
-        c.innerText = data.total_quantity;
+// Function to handle cart payments
+function pay() {
+    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
+    if (!paymentMethod) {
+        alert('Vui lòng chọn phương thức thanh toán!');
+        return;
+    }
 
-    let amounts = document.getElementsByClassName("cart-amount");
-    for (let c of amounts)
-        c.innerText = data.total_amount.toLocaleString();
+    let deliveryAddress = null;
+    if (paymentMethod.value === 'ONLINE') {
+        deliveryAddress = document.getElementById('deliveryAddress').value;
+        if (!deliveryAddress) {
+            alert('Vui lòng nhập địa chỉ giao hàng!');
+            return;
+        }
+    }
+
+    const confirmMessage = paymentMethod.value === 'STORE_PICKUP'
+        ? 'Xác nhận đặt hàng? Bạn sẽ cần đến lấy sách trong vòng 48 giờ.'
+        : 'Xác nhận đặt hàng? Đơn hàng sẽ được giao đến địa chỉ của bạn.';
+
+    if (confirm(confirmMessage)) {
+        fetch('/api/pay', {
+            method: 'POST',
+            body: JSON.stringify({
+                paymentMethod: paymentMethod.value,
+                deliveryAddress: deliveryAddress
+            }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 200) {
+                alert(data.msg);
+                location.reload();
+            } else {
+                alert(data.msg);
+            }
+        })
+        .catch(err => {
+            console.error('Error during payment:', err);
+            alert('Đã xảy ra lỗi trong quá trình thanh toán!');
+        });
+    }
 }
+
+// Keep other existing functions unchanged
 function addToCart(id, name, price, image) {
     fetch('/api/carts', {
         method: "POST",
@@ -25,55 +65,55 @@ function addToCart(id, name, price, image) {
             c.innerHTML = data.total_quantity;
     })
 }
-
-function deleteCart(productId) {
-    if (confirm("Bạn chắc chắn xóa không?") === true) {
-        fetch(`/api/carts/${productId}`, {
-            method: "delete"
-        }).then(res => res.json()).then(data => {
-            updateCartUI(data);
-
-            document.getElementById(`cart${productId}`).style.display = "none";
-        });
-    }
-}
-
-function updateCart(productId, obj) {
-    fetch(`/api/carts/${productId}`, {
-        method: "put",
+// Function to update cart item quantity
+function updateCart(id, obj) {
+    fetch(`/api/carts/${id}`, {
+        method: 'PUT',
         body: JSON.stringify({
-            "quantity": obj.value
+            'quantity': obj.value
         }),
         headers: {
             'Content-Type': 'application/json'
         }
     }).then(res => res.json()).then(data => {
-        updateCartUI(data);
-    })
+        updateCartInfo(data);
+
+        // Update line item subtotal
+        const price = parseFloat(obj.getAttribute('data-price'));
+        const quantity = parseInt(obj.value);
+        const subtotal = price * quantity;
+
+        const subtotalElement = document.getElementById(`subtotal-${id}`);
+        if (subtotalElement) {
+            subtotalElement.textContent = subtotal.toLocaleString('vi-VN') + ' ₫';
+        }
+    }).catch(err => console.error(err));
 }
 
-function pay() {
-    if (confirm("Bạn chắc chắn thanh toán ?") === true) {
-        fetch('/api/pay', {
-            method: "post",
-            headers: {
-                "Content-Type": "application/json"
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 200) {
-                alert("Thanh toán thành công!");
-                location.reload();
-            } else {
-                alert(data.msg);
-            }
-        })
-        .catch(err => {
-            alert("Đã xảy ra lỗi trong quá trình thanh toán!");
-            console.error(err);
-        });
+// Function to delete cart item
+function deleteCart(id) {
+    if (confirm('Bạn chắc chắn muốn xóa sản phẩm này?')) {
+        fetch(`/api/carts/${id}`, {
+            method: 'DELETE'
+        }).then(res => res.json()).then(data => {
+            updateCartInfo(data);
+            // Remove the item from DOM
+            let cart = document.getElementById(`cart${id}`);
+            cart.remove();
+        }).catch(err => console.error(err));
     }
+}
+
+function updateCartInfo(data) {
+    // Update cart counter and total amount
+    let counter = document.getElementsByClassName('cart-counter');
+    let amount = document.getElementsByClassName('cart-amount');
+
+    for (let i = 0; i < counter.length; i++)
+        counter[i].innerText = data.total_quantity;
+
+    for (let i = 0; i < amount.length; i++)
+        amount[i].innerText = data.total_amount.toLocaleString('vi-VN') + ' ₫';
 }
 function addComment(productId) {
     const commentContent = document.getElementById("comment").value;
@@ -147,182 +187,251 @@ function addComment(productId) {
 }
 
 //
+// Existing product import functionality
+function addProductEntry() {
+    const template = document.getElementById('productEntryTemplate');
+    const clone = template.content.cloneNode(true);
+
+    const quantityInput = clone.querySelector('.quantity-input');
+    const select = clone.querySelector('.product-select');
+
+    quantityInput.addEventListener('input', updateTotalQuantity);
+    select.addEventListener('change', function() {
+        updateStockInfo(this);
+    });
+
+    document.getElementById('productsList').appendChild(clone);
+    updateTotalQuantity();
+}
+
+function removeProductEntry(button) {
+    button.closest('.product-entry').remove();
+    updateTotalQuantity();
+}
+
 function updateStockInfo(select) {
-        const productEntry = select.closest('.product-entry');
-        const stockInfo = productEntry.querySelector('.stock-info');
-        const quantityInput = productEntry.querySelector('.quantity-input');
-        const selectedOption = select.options[select.selectedIndex];
+    const productEntry = select.closest('.product-entry');
+    const stockInfo = productEntry.querySelector('.stock-info');
+    const quantityInput = productEntry.querySelector('.quantity-input');
+    const selectedOption = select.options[select.selectedIndex];
 
-        if (selectedOption && selectedOption.value) {
-            const currentStock = parseInt(selectedOption.dataset.stock);
-            const remainingCapacity = 300 - currentStock;
+    if (selectedOption && selectedOption.value) {
+        const currentStock = parseInt(selectedOption.dataset.stock);
+        const remainingCapacity = 300 - currentStock;
 
-            stockInfo.textContent = `Current stock: ${currentStock} | Max additional: ${remainingCapacity}`;
-            quantityInput.max = remainingCapacity;
-
-            // Update quantity warning if needed
-            validateQuantity(quantityInput);
-        } else {
-            stockInfo.textContent = '';
-            quantityInput.max = '';
-        }
+        stockInfo.textContent = `Current stock: ${currentStock} | Max additional: ${remainingCapacity}`;
+        quantityInput.max = remainingCapacity;
+        validateQuantity(quantityInput);
+    } else {
+        stockInfo.textContent = '';
+        quantityInput.max = '';
     }
+}
 
-document.addEventListener('DOMContentLoaded', function() {
-        addProductEntry();
+function validateQuantity(input) {
+    const warning = input.nextElementSibling;
+    const value = parseInt(input.value) || 0;
+    const max = parseInt(input.max);
 
-        document.getElementById('importForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            handleImportSubmit();
+    if (value <= 0) {
+        warning.textContent = 'Quantity must be greater than 0';
+        return false;
+    } else if (max && value > max) {
+        warning.textContent = `Maximum allowed quantity is ${max}`;
+        return false;
+    } else {
+        warning.textContent = '';
+        return true;
+    }
+}
+
+function updateTotalQuantity() {
+    const inputs = document.querySelectorAll('.quantity-input');
+    let total = 0;
+
+    inputs.forEach(input => {
+        const value = parseInt(input.value) || 0;
+        total += value;
+        validateQuantity(input);
+    });
+
+    const totalDisplay = document.getElementById('totalQuantity');
+    const indicator = document.getElementById('minQuantityIndicator');
+
+    totalDisplay.textContent = `Total: ${total}`;
+
+    if (total >= 150) {
+        indicator.classList.remove('text-danger');
+        indicator.classList.add('text-success');
+        indicator.innerHTML = `<i class="fas fa-check-circle"></i> Min: 150`;
+    } else {
+        indicator.classList.remove('text-success');
+        indicator.classList.add('text-danger');
+        indicator.innerHTML = `<i class="fas fa-exclamation-circle"></i> Min: 150`;
+    }
+}
+
+// Form submission handlers
+function handleImportSubmit(event) {
+    event.preventDefault();
+
+    const entries = document.querySelectorAll('.product-entry');
+    const importData = [];
+    let isValid = true;
+    let totalQuantity = 0;
+
+    entries.forEach(entry => {
+        const select = entry.querySelector('.product-select');
+        const input = entry.querySelector('.quantity-input');
+
+        if (!select.value) {
+            alert('Please select a product for all entries');
+            isValid = false;
+            return;
+        }
+
+        if (!validateQuantity(input)) {
+            isValid = false;
+            return;
+        }
+
+        const quantity = parseInt(input.value);
+        totalQuantity += quantity;
+
+        importData.push({
+            product_id: parseInt(select.value),
+            quantity: quantity
         });
     });
 
-    // Add a new product entry
-    function addProductEntry() {
-        const template = document.getElementById('productEntryTemplate');
-        const clone = template.content.cloneNode(true);
-
-        // Add event listeners
-        const quantityInput = clone.querySelector('.quantity-input');
-        const select = clone.querySelector('.product-select');
-
-        quantityInput.addEventListener('input', updateTotalQuantity);
-        select.addEventListener('change', function() {
-            updateStockInfo(this);
-        });
-
-        document.getElementById('productsList').appendChild(clone);
-        updateTotalQuantity();
+    if (!isValid) {
+        alert('Please correct the quantity errors before submitting.');
+        return;
     }
 
-    // Remove a product entry
-    function removeProductEntry(button) {
-        button.closest('.product-entry').remove();
-        updateTotalQuantity();
+    if (totalQuantity < 150) {
+        alert(`Total quantity must be at least 150. Current total: ${totalQuantity}`);
+        return;
     }
 
-    // Update stock info when product is selected
-    function updateStockInfo(select) {
-        const productEntry = select.closest('.product-entry');
-        const stockInfo = productEntry.querySelector('.stock-info');
-        const quantityInput = productEntry.querySelector('.quantity-input');
-        const selectedOption = select.options[select.selectedIndex];
+    // Show loading state
+    const submitButton = event.target.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
 
-        if (selectedOption && selectedOption.value) {
-            const currentStock = parseInt(selectedOption.dataset.stock);
-            const remainingCapacity = 300 - currentStock;
-
-            stockInfo.textContent = `Current stock: ${currentStock} | Max additional: ${remainingCapacity}`;
-            quantityInput.max = remainingCapacity;
-
-            // Update quantity warning if needed
-            validateQuantity(quantityInput);
+    fetch('/api/import', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ products: importData })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 200) {
+            alert('Import successful!');
+            location.reload(); // Refresh the page to show updated quantities
         } else {
-            stockInfo.textContent = '';
-            quantityInput.max = '';
+            alert(data.message || 'Import failed. Please check the requirements.');
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred during import. Please try again.');
+    })
+    .finally(() => {
+        // Restore button state
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
+    });
+}
+function handleNewProductSubmit(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+
+    // Basic validations
+    const quantity = parseInt(formData.get('quantity'));
+    const price = parseFloat(formData.get('price').replace(/,/g, ''));
+
+    // Validate required fields
+    if (!formData.get('name') || !formData.get('author') || !formData.get('category_id')) {
+        alert('Please fill in all required fields');
+        return;
     }
 
-    // Validate individual quantity input
-    function validateQuantity(input) {
-        const warning = input.nextElementSibling;
-        const value = parseInt(input.value) || 0;
-        const max = parseInt(input.max);
+    // Validate quantity
+    if (isNaN(quantity) || quantity <= 0 || quantity > 300) {
+        alert('Quantity must be between 1 and 300');
+        return;
+    }
 
-        if (value <= 0) {
-            warning.textContent = 'Quantity must be greater than 0';
-            return false;
-        } else if (max && value > max) {
-            warning.textContent = `Maximum allowed quantity is ${max}`;
-            return false;
+    // Validate price
+    if (isNaN(price) || price <= 0) {
+        alert('Please enter a valid price greater than 0');
+        return;
+    }
+
+    // Create the request payload
+    const payload = {
+        name: formData.get('name').trim(),
+        author: formData.get('author').trim(),
+        description: formData.get('description') ? formData.get('description').trim() : '',
+        category_id: parseInt(formData.get('category_id')),
+        price: price,
+        active: form.querySelector('[name="active"]').checked,
+        quantity: quantity,
+        image: formData.get('image') || ''
+    };
+
+    // Show loading state
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = 'Importing...';
+
+    fetch('/api/import/new', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 200) {
+            alert('New product imported successfully!');
+            location.reload();
         } else {
-            warning.textContent = '';
-            return true;
+            alert(data.message || 'Import failed. Please check the requirements.');
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred during import. Please try again.');
+    })
+    .finally(() => {
+        // Restore button state
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize existing product import form
+    const importForm = document.getElementById('importForm');
+    if (importForm) {
+        importForm.addEventListener('submit', handleImportSubmit);
     }
 
-    // Update total quantity and validate minimum requirement
-    function updateTotalQuantity() {
-        const inputs = document.querySelectorAll('.quantity-input');
-        let total = 0;
+    // Add initial product entry
+    addProductEntry();
 
-        inputs.forEach(input => {
-            const value = parseInt(input.value) || 0;
-            total += value;
-            validateQuantity(input);
-        });
-
-        const totalDisplay = document.getElementById('totalQuantity');
-        const indicator = document.getElementById('minQuantityIndicator');
-
-        totalDisplay.textContent = `Total: ${total}`;
-
-        if (total >= 150) {
-            indicator.classList.remove('text-danger');
-            indicator.classList.add('text-success');
-            indicator.innerHTML = `<i class="fas fa-check-circle"></i> Min: 150`;
-        } else {
-            indicator.classList.remove('text-success');
-            indicator.classList.add('text-danger');
-            indicator.innerHTML = `<i class="fas fa-exclamation-circle"></i> Min: 150`;
-        }
+    // Initialize new product import form
+    const newProductForm = document.getElementById('newProductForm');
+    if (newProductForm) {
+        newProductForm.addEventListener('submit', handleNewProductSubmit);
     }
-
-    // Handle form submission
-    function handleImportSubmit() {
-        // Validate all quantities first
-        const entries = document.querySelectorAll('.product-entry');
-        const importData = [];
-        let isValid = true;
-
-        entries.forEach(entry => {
-            const select = entry.querySelector('.product-select');
-            const input = entry.querySelector('.quantity-input');
-
-            if (!validateQuantity(input)) {
-                isValid = false;
-                return;
-            }
-
-            if (select.value && input.value) {
-                importData.push({
-                    product_id: parseInt(select.value),
-                    quantity: parseInt(input.value)
-                });
-            }
-        });
-
-        if (!isValid) {
-            alert('Please correct the quantity errors before submitting.');
-            return;
-        }
-
-        // Validate total quantity
-        const totalQuantity = importData.reduce((sum, item) => sum + item.quantity, 0);
-        if (totalQuantity < 150) {
-            alert(`Total quantity must be at least 150. Current total: ${totalQuantity}`);
-            return;
-        }
-
-        // Submit to server
-        fetch('/api/import', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ products: importData })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 200) {
-                alert('Import successful!');
-                location.reload();
-            } else {
-                alert(data.message || 'Import failed. Please check the requirements.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred during import. Please try again.');
-        });
-    }
+});

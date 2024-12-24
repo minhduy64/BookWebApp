@@ -1,13 +1,14 @@
 import math
-
+from datetime import datetime, timedelta
 from flask import render_template, request, redirect, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
-
 import dao
 import utils
-from app import app, login
-from app.models import UserRole, User, Product
+from app import app, login, db
+from app.models import UserRole, User, Product, PaymentMethod, OrderDetail, OrderStatus, Order
 from flask import render_template, request, redirect, url_for, flash
+import cloudinary.uploader
+import hashlib
 
 
 @app.route("/")
@@ -24,7 +25,7 @@ def index():
                            pages=math.ceil(total / app.config["PAGE_SIZE"]))
 
 
-@app.route("/login", methods=['get', 'post'])
+@app.route("/login", methods=['GET', 'POST'])
 def login_process():
     if request.method.__eq__('POST'):
         username = request.form.get('username')
@@ -71,20 +72,39 @@ def logout_process():
     return redirect('/login')
 
 
-@app.route("/register", methods=['get', 'post'])
+@app.route("/register", methods=['GET', 'POST'])
 def register_process():
     err_msg = None
-    if request.method.__eq__('POST'):
+    success_msg = None
+    if request.method == 'POST':
+        username = request.form.get('username')
         password = request.form.get('password')
         confirm = request.form.get('confirm')
 
-        if password.__eq__(confirm):
-            data = request.form.copy()
-            del data['confirm']
+        # Check if the password and confirmation match
+        if password == confirm:
+            try:
+                # Check if the username already exists
+                if dao.is_username_taken(username):
+                    err_msg = "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác!"
+                else:
+                    # Prepare data for registration
+                    data = request.form.copy()
+                    del data['confirm']
+                    avatar = request.files.get('avatar')
 
-            avatar = request.files.get('avatar')
-            dao.add_user(avatar=avatar, **data)
-            return redirect('/login')
+                    # Add user to the database
+                    dao.add_user(avatar=avatar, **data)
+
+                    # Retrieve the newly registered user (you might want to fetch it from the database)
+                    user = {
+                        "name": data.get('name'),
+                        "username": username
+                    }
+                    success_msg = "Đăng ký tài khoản thành công!"
+                    return render_template('register.html', success_msg=success_msg, user=user)
+            except Exception as e:
+                err_msg = f'Có lỗi xảy ra: {str(e)}'
         else:
             err_msg = 'Mật khẩu không khớp!'
 
@@ -154,6 +174,11 @@ def delete_cart(product_id):
     return jsonify(utils.count_cart(cart))
 
 
+@app.route("/cart")
+def cart_view():
+    return render_template('cart.html')
+
+
 @app.route("/api/pay", methods=['POST'])
 @login_required
 def pay():
@@ -162,16 +187,57 @@ def pay():
         return jsonify({'status': 400, 'msg': 'Giỏ hàng rỗng!'})
 
     try:
-        dao.add_order(cart)
-        session.pop('cart', None)  # Clear the cart after successful payment
-        return jsonify({'status': 200, 'msg': 'Thanh toán thành công!'})
+        # Get payment method from request
+        payment_data = request.get_json()
+        payment_method = PaymentMethod[payment_data.get('paymentMethod', 'STORE_PICKUP')]
+        delivery_address = payment_data.get('deliveryAddress')
+
+        # Create new order
+        order = Order(
+            user_id=current_user.id,
+            payment_method=payment_method,
+            status=OrderStatus.PENDING,
+            delivery_address=delivery_address if payment_method == PaymentMethod.ONLINE else None
+        )
+        db.session.add(order)
+
+        # Add order details
+        for item in cart.values():
+            detail = OrderDetail(
+                order=order,
+                product_id=item['id'],
+                quantity=item['quantity'],
+                price=item['price']
+            )
+            db.session.add(detail)
+
+            # Update product stock
+            product = Product.query.get(item['id'])
+            if product:
+                if product.quantity_in_stock < item['quantity']:
+                    return jsonify({'status': 400, 'msg': f'Sản phẩm {product.name} không đủ số lượng!'})
+                product.quantity_in_stock -= item['quantity']
+
+        # Calculate pickup deadline for store pickup orders
+        if payment_method == PaymentMethod.STORE_PICKUP:
+            order.pickup_deadline = datetime.now() + timedelta(hours=48)
+
+        # Calculate total amount
+        order.calculate_total()
+
+        db.session.commit()
+        session.pop('cart', None)  # Clear the cart after successful order
+
+        return jsonify({
+            'status': 200,
+            'msg': 'Đặt hàng thành công!' +
+                   (' Vui lòng đến nhận sách trong vòng 48 giờ.' if payment_method == PaymentMethod.STORE_PICKUP else
+                    ' Đơn hàng sẽ được giao đến địa chỉ của bạn.')
+        })
+
     except Exception as ex:
+        db.session.rollback()
         return jsonify({'status': 500, 'msg': f'Lỗi: {str(ex)}'})
-
-
-@app.route("/cart")
-def cart_view():
-    return render_template('cart.html')
 
 
 @app.context_processor
@@ -284,6 +350,166 @@ def import_interface():
 
     products = Product.query.all()
     return render_template('import_products.html', products=products)
+
+
+@app.route("/api/import/new", methods=['POST'])
+@login_required
+def import_new_product():
+    if current_user.user_role not in [UserRole.ADMIN, UserRole.STAFF]:
+        return jsonify({
+            "status": 403,
+            "message": "You don't have permission to perform product imports"
+        }), 403
+
+    if not request.is_json:
+        return jsonify({
+            "status": 400,
+            "message": "Request must be JSON"
+        }), 400
+
+    data = request.json
+    required_fields = ['name', 'author', 'price', 'category_id', 'quantity']
+
+    # Validate required fields
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({
+            "status": 400,
+            "message": f"Missing required fields: {', '.join(missing_fields)}"
+        }), 400
+
+    try:
+        # Clean and validate quantity
+        quantity = int(data['quantity'])
+        if quantity <= 0:
+            return jsonify({
+                "status": 400,
+                "message": "Quantity must be a positive integer"
+            }), 400
+        if quantity > 300:
+            return jsonify({
+                "status": 400,
+                "message": "Initial quantity cannot exceed 300"
+            }), 400
+
+        # Clean and validate price
+        try:
+            price = float(str(data['price']).replace(',', ''))
+            if price <= 0:
+                return jsonify({
+                    "status": 400,
+                    "message": "Price must be a positive number"
+                }), 400
+        except ValueError:
+            return jsonify({
+                "status": 400,
+                "message": "Invalid price format"
+            }), 400
+
+        # Create product data dictionary
+        product_data = {
+            'name': str(data['name']).strip(),
+            'author': str(data['author']).strip(),
+            'description': str(data.get('description', '')).strip(),
+            'price': price,
+            'image': data.get('image'),
+            'active': bool(data.get('active', True)),
+            'category_id': int(data['category_id'])
+        }
+
+        success, message = dao.import_product_with_details(
+            staff_id=current_user.id,
+            product_data=product_data,
+            import_quantity=quantity
+        )
+
+        if success:
+            return jsonify({
+                "status": 200,
+                "message": message
+            })
+        else:
+            return jsonify({
+                "status": 400,
+                "message": message
+            }), 400
+
+    except ValueError as e:
+        return jsonify({
+            "status": 400,
+            "message": f"Invalid data format: {str(e)}"
+        }), 400
+    except Exception as e:
+        return jsonify({
+            "status": 500,
+            "message": f"Server error: {str(e)}"
+        }), 500
+
+
+@app.route("/orders")
+@login_required
+def order_history():
+    return render_template('order_history.html')
+
+
+@app.route("/profile", methods=['GET'])
+@login_required
+def profile():
+    return render_template('profile.html')
+
+
+@app.route("/profile/update", methods=['POST'])
+@login_required
+def update_profile():
+    if request.method == 'POST':
+        try:
+            # Update name
+            current_user.name = request.form.get('name')
+
+            # Handle password change if provided
+            current_password = request.form.get('current_password')
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+
+            if current_password and new_password and confirm_password:
+                # Verify current password
+                if current_user.password == hashlib.md5(current_password.strip().encode('utf-8')).hexdigest():
+                    if new_password == confirm_password:
+                        current_user.password = hashlib.md5(new_password.strip().encode('utf-8')).hexdigest()
+                        flash('Cập nhật thông tin thành công')
+                    else:
+                        flash('Mật khẩu mới không khớp', 'error')
+                else:
+                    flash('Mật khẩu hiện tại không chính xác', 'error')
+
+            db.session.commit()
+            flash('Cập nhật thông tin thành công')
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Có lỗi xảy ra: {str(e)}', 'error')
+
+    return redirect(url_for('profile'))
+
+
+@app.route("/profile/avatar", methods=['POST'])
+@login_required
+def update_avatar():
+    if request.method == 'POST':
+        try:
+            avatar = request.files.get('avatar')
+            if avatar:
+                # Upload to Cloudinary
+                result = cloudinary.uploader.upload(avatar)
+                current_user.avatar = result.get('secure_url')
+                db.session.commit()
+                flash('Cập nhật ảnh đại diện thành công')
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Có lỗi xảy ra: {str(e)}', 'error')
+
+    return redirect(url_for('profile'))
 
 
 if __name__ == '__main__':

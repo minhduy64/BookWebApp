@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from app import db, app
 from enum import Enum as RoleEnum
 from flask_login import UserMixin
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class UserRole(RoleEnum):
@@ -22,7 +22,8 @@ class User(db.Model, UserMixin):
     user_role = Column(Enum(UserRole), default=UserRole.CUSTOMER)
 
     # Add relationships
-    product_imports = relationship('ProductImport', backref='staff', lazy=True)
+    # Remove the duplicate staff backref
+    product_imports = relationship('ProductImport', backref='created_by', lazy=True)
     orders = relationship('Order', backref='customer', lazy=True)
     comments = relationship('Comment', backref='user', lazy=True)
 
@@ -46,7 +47,7 @@ class Product(db.Model):
     price = Column(Float, default=0)
     image = Column(String(255), nullable=True)
     active = Column(Boolean, default=True)
-    category_id = Column(Integer, ForeignKey(Category.id), nullable=False)
+    category_id = Column(Integer, ForeignKey('category.id'), nullable=False)  # Fixed: Added table name
     quantity_in_stock = Column(Integer, default=0)
 
     # Relationships
@@ -62,14 +63,14 @@ class ProductImport(db.Model):
     __tablename__ = 'product_import'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    import_date = Column(DateTime, default=datetime.now, nullable=False)
-    staff_id = Column(Integer, ForeignKey(User.id), nullable=False)
+    import_date = Column(DateTime, default=datetime.now(), nullable=False)
+    staff_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     total_quantity = Column(Integer, default=0)
     notes = Column(String(255))
 
-    # Relationship
+    # Remove duplicate staff relationship since it's defined in User class
     details = relationship('ProductImportDetail', backref='import_receipt', lazy=True,
-                           cascade="all, delete-orphan")
+                         cascade="all, delete-orphan")
 
     def calculate_total_quantity(self):
         self.total_quantity = sum(detail.quantity for detail in self.details)
@@ -81,11 +82,27 @@ class ProductImportDetail(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     import_id = Column(Integer, ForeignKey('product_import.id'), nullable=False)
     product_id = Column(Integer, ForeignKey('product.id'), nullable=False)
-    quantity = Column(Integer, nullable=False)  # Số lượng
+    quantity = Column(Integer, nullable=False)
 
     def update_product_stock(self):
         if self.product:
             self.product.quantity_in_stock += self.quantity
+
+
+
+
+class OrderStatus(RoleEnum):
+    PENDING = 1
+    CONFIRMED = 2
+    PAID = 3
+    SHIPPING = 4
+    COMPLETED = 5
+    CANCELLED = 6
+
+
+class PaymentMethod(RoleEnum):
+    ONLINE = 1
+    STORE_PICKUP = 2
 
 
 class Order(db.Model):
@@ -93,13 +110,25 @@ class Order(db.Model):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey(User.id), nullable=False)
-    order_date = Column(DateTime, default=datetime.now().date())
-    status = Column(String(20), default='pending')  # pending, paid, cancelled
-    payment_method = Column(String(20))  # online, offline
+    order_date = Column(DateTime, default=datetime.now)
+    status = Column(Enum(OrderStatus), default=OrderStatus.PENDING)
+    payment_method = Column(Enum(PaymentMethod), nullable=True)
+    delivery_address = Column(String(255), nullable=True)
+    pickup_deadline = Column(DateTime, nullable=True)
+    total_amount = Column(Float, default=0)
 
     # Relationship
     details = relationship('OrderDetail', backref='order', lazy=True,
                            cascade="all, delete-orphan")
+
+    def calculate_pickup_deadline(self):
+        """Calculate pickup deadline based on order date"""
+        if self.payment_method == PaymentMethod.STORE_PICKUP:
+            self.pickup_deadline = self.order_date + timedelta(hours=48)
+
+    def calculate_total(self):
+        """Calculate total order amount"""
+        self.total_amount = sum(detail.price * detail.quantity for detail in self.details)
 
 
 class OrderDetail(db.Model):

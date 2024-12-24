@@ -1,0 +1,216 @@
+{% extends 'layout/base.html' %}
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Profile Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <img src="{{ current_user.avatar }}" 
+                             class="rounded-circle mb-3" 
+                             style="width: 150px; height: 150px; object-fit: cover;"
+                             alt="{{ current_user.name }}'s avatar">
+                        <h4 class="card-title mb-0">{{ current_user.name }}</h4>
+                        <p class="text-muted">@{{ current_user.username }}</p>
+                    </div>
+
+                    <div class="d-grid">
+                        <button class="btn btn-outline-primary" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#changeAvatarModal">
+                            <i class="bi bi-camera"></i> Thay đổi ảnh đại diện
+                        </button>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-around">
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ current_user.orders|length }}</h6>
+                            <small class="text-muted">Đơn hàng</small>
+                        </div>
+                        <div class="text-center">
+                            <h6 class="mb-0">{{ current_user.comments|length }}</h6>
+                            <small class="text-muted">Đánh giá</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Information -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h5 class="card-title mb-0">Thông tin cá nhân</h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" action="{{ url_for('update_profile') }}" class="needs-validation" novalidate>
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Họ và tên</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="name" 
+                                   name="name" 
+                                   value="{{ current_user.name }}"
+                                   required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Tên đăng nhập</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="username" 
+                                   value="{{ current_user.username }}"
+                                   disabled>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <h6 class="mb-3">Đổi mật khẩu</h6>
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Mật khẩu hiện tại</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="current_password" 
+                                   name="current_password">
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">Mật khẩu mới</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="new_password" 
+                                   name="new_password">
+                        </div>
+                        <div class="mb-4">
+                            <label for="confirm_password" class="form-label">Xác nhận mật khẩu mới</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="confirm_password" 
+                                   name="confirm_password">
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Cập nhật thông tin
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Avatar Modal -->
+<div class="modal fade" id="changeAvatarModal" tabindex="-1" aria-labelledby="changeAvatarModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changeAvatarModalLabel">Thay đổi ảnh đại diện</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('update_avatar') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="avatar" class="form-label">Chọn ảnh mới</label>
+                        <input type="file" 
+                               class="form-control" 
+                               id="avatar" 
+                               name="avatar" 
+                               accept="image/*" 
+                               required>
+                    </div>
+                    <div class="form-text">
+                        Hỗ trợ định dạng: JPG, PNG, GIF. Kích thước tối đa: 2MB
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-cloud-upload"></i> Tải lên
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Form validation
+(function () {
+    'use strict'
+    
+    var forms = document.querySelectorAll('.needs-validation')
+    
+    Array.prototype.slice.call(forms)
+        .forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                
+                form.classList.add('was-validated')
+            }, false)
+        })
+})()
+
+// Password validation
+document.getElementById('new_password').addEventListener('input', function() {
+    const newPassword = this.value;
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    if (confirmPassword.value && newPassword !== confirmPassword.value) {
+        confirmPassword.setCustomValidity('Mật khẩu không khớp');
+    } else {
+        confirmPassword.setCustomValidity('');
+    }
+});
+
+document.getElementById('confirm_password').addEventListener('input', function() {
+    const newPassword = document.getElementById('new_password').value;
+    
+    if (this.value && this.value !== newPassword) {
+        this.setCustomValidity('Mật khẩu không khớp');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+</script>
+
+<style>
+.card {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.btn-primary {
+    padding: 0.5rem 1rem;
+}
+
+.modal-content {
+    border: none;
+    border-radius: 0.5rem;
+}
+</style>
+{% endblock %}
