@@ -145,7 +145,6 @@
         box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
     }
 
-    /* New styles for payment section */
     .form-check-label small {
         margin-top: 0.25rem;
     }
@@ -156,7 +155,7 @@
 </style>
 
 <script>
-    // Show/hide delivery address based on payment method
+    // Hiện/ẩn địa chỉ giao hàng dựa trên phương thức thanh toán
     document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
         radio.addEventListener('change', function() {
             const deliverySection = document.getElementById('deliveryAddressSection');

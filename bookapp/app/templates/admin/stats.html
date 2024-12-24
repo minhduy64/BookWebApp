@@ -156,21 +156,21 @@
     {% for c in stats %}
         data.push({{ c[2] }});  // Revenue
         rentals.push({{ c[3] }});  // Rentals
-        proportions.push({{ c[4] }});  // Proportion
+        proportions.push({{ c[4] }});  // Percentage
         labels.push('{{ c[1] }}');
     {% endfor %}
 
     {% for c in month_stats %}
         mData.push({{ c[1] }});  // Revenue
         mRentals.push({{ c[2] }});  // Rentals
-        mProportions.push({{ c[3] }});  // Proportion
+        mProportions.push({{ c[3] }});  // Percentage
         mLabels.push('{{ c[0] }}');
     {% endfor %}
 
     {% for c in month_category_stats %}
         categoryData.push({{ c[2] }});  // Revenue
         categoryRentals.push({{ c[3] }});  // Rentals
-        categoryProportions.push({{ c[4] }});  // Proportion
+        categoryProportions.push({{ c[4] }});  // Percentage
         categoryLabels.push('{{ c[0] }} - Tháng {{ c[1] }}');
     {% endfor %}
 

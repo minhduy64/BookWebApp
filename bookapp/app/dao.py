@@ -13,7 +13,6 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 
 
-
 def load_categories():
     return Category.query.order_by('id').all()
 
@@ -35,22 +34,22 @@ def load_products(kw=None, category_id=None, page=1):
 
 
 def import_products(staff_id, products_data):
-    # Check minimum total import quantity
+    # Kiểm tra tổng số lượng nhập khẩu tối thiểu
     total_import_quantity = sum(b['quantity'] for b in products_data)
     if total_import_quantity < 150:
-        return False, "Minimum import quantity must be 150"
+        return False, "Số lượng nhập tối thiểu phải là 150"
 
-    # Validate each product's current quantity
+    # Xác thực số lượng hiện tại của từng sản phẩm
     for product_data in products_data:
         product = product.query.get(product_data['product_id'])
         if not product:
-            return False, f"product with id {product_data['product_id']} not found"
+            return False, f"Kông tìm thấy sản phẩm có id {product_data['product_id']}"
 
-        # Check if current product quantity is already 300 or more
+        # Kiểm tra xem số lượng sản phẩm hiện tại đã từ 300 trở lên chưa
         if product.quantity >= 300:
-            return False, f"Cannot import product '{product.title}' - current quantity ({product.quantity}) is already 300 or more"
+            return False, f"Không thể nhập sản phẩm '{product.title}' - số lượng hiện tại ({product.quantity}) đã 300 hoặc hơn"
 
-        # Check if import would exceed 300 limit
+        # Kiểm tra xem việc nhập có vượt quá 300 hay không
         new_quantity = product.quantity + product_data['quantity']
         if new_quantity > 300:
             return False, f"Cannot import {product_data['quantity']} units of '{product.title}' - would exceed 300 limit (current: {product.quantity})"
@@ -80,14 +79,30 @@ def get_user_by_username(username):
     return User.query.get(username)
 
 
-def add_user(name, username, password, email, phone_number=None, avatar=None):
+from flask import flash
 
+
+def add_user(name, username, password, email, phone_number=None, avatar=None):
+    # Kiểm tra xem tên người dùng có tồn tại không
     if is_username_taken(username):
-        return False, "Tên tài khoản đã tồn tại, hãy chọn tên tài khoản khác"
+        flash("Tên tài khoản đã tồn tại, hãy chọn tên tài khoản khác", "warning")
+        return False, "Tên tài khoản đã tồn tại"
+
+    # Kiểm tra xem email có tồn tại không
+    if is_email_taken(email):
+        flash("Email đã tồn tại, hãy sử dụng email khác", "warning")
+        return False, "Email đã tồn tại"
+
+    # Kiểm tra xem số điện thoại có tồn tại không
+    if phone_number and is_phone_number_taken(phone_number):
+        flash("Số điện thoại đã tồn tại, hãy sử dụng số điện thoại khác", "warning")
+        return False, "Số điện thoại đã tồn tại"
 
     try:
+        # Băm mật khẩu
         password = str(hashlib.md5(password.strip().encode('utf-8')).hexdigest())
 
+        # Tạo đối tượng người dùng mới
         u = User(
             name=name,
             username=username,
@@ -96,21 +111,33 @@ def add_user(name, username, password, email, phone_number=None, avatar=None):
             phone_number=phone_number
         )
 
+        # Xử lý tải lên hình đại diện
         if avatar:
             res = cloudinary.uploader.upload(avatar)
             u.avatar = res.get('secure_url')
 
+        # Lưu vào cơ sở dữ liệu
         db.session.add(u)
         db.session.commit()
+        flash("Đăng ký tài khoản thành công", "success")
         return True, "Đăng ký tài khoản thành công"
 
     except Exception as e:
         db.session.rollback()
+        flash(f"Lỗi khi đăng ký: {str(e)}", "danger")
         return False, f"Lỗi khi đăng ký: {str(e)}"
 
 
 def is_username_taken(username):
     return User.query.filter_by(username=username).first() is not None
+
+
+def is_email_taken(email):
+    return User.query.filter_by(email=email).first() is not None
+
+
+def is_phone_number_taken(phone_number):
+    return User.query.filter_by(phone_number=phone_number).first() is not None
 
 
 def add_order(cart):
@@ -200,30 +227,21 @@ def add_comment(content, product_id):
 
 ## ##
 def import_products(staff_id, products_data):
-    """
-    Import products with quantity validation and updates
 
-    Args:
-        staff_id: ID of the staff member performing the import
-        products_data: List of dicts with product_id and quantity
-
-    Returns:
-        tuple: (success: bool, message: str)
-    """
-    # Check minimum total import quantity
+    # Kiểm tra tổng số lượng nhập khẩu tối thiểu
     total_import_quantity = sum(product['quantity'] for product in products_data)
     if total_import_quantity < 150:
         return False, "Total import quantity must be at least 150 books"
 
     try:
-        # Create import receipt first
+        # Tạo biên lai nhập hàng trước
         import_receipt = ProductImport(
             staff_id=staff_id,
             total_quantity=total_import_quantity
         )
         db.session.add(import_receipt)
 
-        # Validate and process each product
+        # Xác thực và xử lý từng sản phẩm
         for product_data in products_data:
             product = Product.query.get(product_data['product_id'])
             if not product:
@@ -243,7 +261,7 @@ def import_products(staff_id, products_data):
                 db.session.rollback()
                 return False, f"Cannot import {import_quantity} units of '{product.name}' - would exceed 300 limit (current: {current_quantity})"
 
-            # Create import detail
+            # Tạo chi tiết nhập
             detail = ProductImportDetail(
                 import_receipt=import_receipt,
                 product_id=product.id,
@@ -251,10 +269,10 @@ def import_products(staff_id, products_data):
             )
             db.session.add(detail)
 
-            # Update product stock
+            #Cập nhật kho sản phẩm
             product.quantity_in_stock = new_quantity
 
-        # Calculate total quantity for the import receipt
+        # Tính tổng số lượng cho biên lai nhập khẩu
         import_receipt.calculate_total_quantity()
 
         db.session.commit()
@@ -266,9 +284,7 @@ def import_products(staff_id, products_data):
 
 
 def import_product_with_details(staff_id, product_data, import_quantity):
-    """
-    Import a new product or update existing one with import details
-    """
+
     try:
         # Create new product
         product = Product(
@@ -279,13 +295,13 @@ def import_product_with_details(staff_id, product_data, import_quantity):
             image=str(product_data.get('image', '')),
             active=bool(product_data.get('active', True)),
             category_id=int(product_data['category_id']),
-            quantity_in_stock=0  # Will be updated through import detail
+            quantity_in_stock=0
         )
 
         db.session.add(product)
-        db.session.flush()  # Get product ID without committing
+        db.session.flush()
 
-        # Create import receipt
+        # Tạo biên lai nhập hàng
         import_receipt = ProductImport(
             staff_id=staff_id,
             total_quantity=import_quantity,
@@ -294,7 +310,7 @@ def import_product_with_details(staff_id, product_data, import_quantity):
         db.session.add(import_receipt)
         db.session.flush()
 
-        # Create import detail
+        # Tạo chi tiết nhập hàng
         detail = ProductImportDetail(
             import_id=import_receipt.id,
             product_id=product.id,
@@ -302,7 +318,7 @@ def import_product_with_details(staff_id, product_data, import_quantity):
         )
         db.session.add(detail)
 
-        # Update product stock directly
+        # Cập nhật trực tiếp kho sản phẩm
         product.quantity_in_stock = import_quantity
 
         db.session.commit()
@@ -318,21 +334,21 @@ def import_product_with_details(staff_id, product_data, import_quantity):
 
 @event.listens_for(ProductImportDetail, 'after_insert')
 def update_stock_after_import(mapper, connection, target):
-    """Update product stock after a new import detail is created"""
+    #Cập nhật kho sản phẩm sau khi chi tiết nhập mới được tạo"
     if target.product:
         target.product.quantity_in_stock += target.quantity
 
 
 @event.listens_for(ProductImportDetail, 'before_delete')
 def revert_stock_before_delete(mapper, connection, target):
-    """Revert product stock before an import detail is deleted"""
+    #Hoàn nguyên kho sản phẩm trước khi chi tiết nhập bị xóa
     if target.product:
         target.product.quantity_in_stock -= target.quantity
 
 
 def cancel_expired_orders():
     with app.app_context():
-        # Find all pending store pickup orders that are past their deadline
+        # Tìm tất cả các đơn đặt hàng nhận tại cửa hàng đang chờ xử lý đã quá thời hạn
         expired_orders = Order.query.filter(
             Order.status == OrderStatus.PENDING,
             Order.payment_method == PaymentMethod.STORE_PICKUP,
@@ -340,24 +356,24 @@ def cancel_expired_orders():
         ).all()
 
         for order in expired_orders:
-            # Return products to inventory
+            # Trả sản phẩm về kho
             for detail in order.details:
                 product = Product.query.get(detail.product_id)
                 if product:
                     product.quantity_in_stock += detail.quantity
 
-            # Update order status
+            # Cập nhật trạng thái đơn hàng
             order.status = OrderStatus.CANCELLED
 
         db.session.commit()
 
 
-# Set up the scheduler
+#Thiết lập lịch trình
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=cancel_expired_orders, trigger="interval", hours=1)
 scheduler.start()
 
-# Shut down the scheduler when exiting the app
+# Tắt bộ lập lịch khi thoát ứng dụng
 atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == '__main__':

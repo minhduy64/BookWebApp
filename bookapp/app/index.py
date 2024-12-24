@@ -49,11 +49,11 @@ def login_admin_process():
         flash('Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu')
         return redirect('/admin')
 
-    # Authenticate user with username and password
+    # Xác thực người dùng bằng tên người dùng và mật khẩu
     u = dao.auth_user(username=username, password=password)
 
     if u:
-        # Check if the user has the ADMIN or STAFF role
+        # Kiểm tra xem người dùng có vai trò quản trị hoặc nhân viên
         if u and u.user_role in [UserRole.ADMIN, UserRole.STAFF]:
             login_user(u)
             return redirect('/admin')
@@ -80,22 +80,22 @@ def register_process():
         password = request.form.get('password')
         confirm = request.form.get('confirm')
 
-        # Check if the password and confirmation match
+        # Kiểm tra xem mật khẩu và xác nhận có khớp không
         if password == confirm:
             try:
-                # Check if the username already exists
+                # Kiểm tra xem tên người dùng đã tồn tại chưa
                 if dao.is_username_taken(username):
                     err_msg = "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác!"
                 else:
-                    # Prepare data for registration
+                    # Chuẩn bị dữ liệu để đăng ký
                     data = request.form.copy()
                     del data['confirm']
                     avatar = request.files.get('avatar')
 
-                    # Add user to the database
+                    # Thêm người dùng vào cơ sở dữ liệu
                     dao.add_user(avatar=avatar, **data)
 
-                    # Retrieve the newly registered user (you might want to fetch it from the database)
+                    # Truy xuất người dùng mới đăng ký
                     user = {
                         "name": data.get('name'),
                         "username": username
@@ -186,12 +186,12 @@ def pay():
         return jsonify({'status': 400, 'msg': 'Giỏ hàng rỗng!'})
 
     try:
-        # Get payment method from request
+        # Nhận phương thức thanh toán từ yêu cầu
         payment_data = request.get_json()
         payment_method = PaymentMethod[payment_data.get('paymentMethod', 'STORE_PICKUP')]
         delivery_address = payment_data.get('deliveryAddress')
 
-        # Create new order
+        # Tạo đơn hàng mới
         order = Order(
             user_id=current_user.id,
             payment_method=payment_method,
@@ -200,7 +200,7 @@ def pay():
         )
         db.session.add(order)
 
-        # Add order details
+        # Thêm chi tiết đơn hàng
         for item in cart.values():
             detail = OrderDetail(
                 order=order,
@@ -210,22 +210,22 @@ def pay():
             )
             db.session.add(detail)
 
-            # Update product stock
+            #Cập nhật kho sản phẩm
             product = Product.query.get(item['id'])
             if product:
                 if product.quantity_in_stock < item['quantity']:
                     return jsonify({'status': 400, 'msg': f'Sản phẩm {product.name} không đủ số lượng!'})
                 product.quantity_in_stock -= item['quantity']
 
-        # Calculate pickup deadline for store pickup orders
+        # Tính thời hạn lấy hàng cho các đơn hàng lấy tại cửa hàng
         if payment_method == PaymentMethod.STORE_PICKUP:
             order.pickup_deadline = datetime.now() + timedelta(hours=48)
 
-        # Calculate total amount
+        # Tính tổng số tiền
         order.calculate_total()
 
         db.session.commit()
-        session.pop('cart', None)  # Clear the cart after successful order
+        session.pop('cart', None)# Xóa giỏ hàng sau khi đặt hàng thành công
 
         return jsonify({
             'status': 200,
@@ -259,7 +259,7 @@ def details(product_id):
 def add_comment(product_id):
     try:
         c = dao.add_comment(content=request.json.get('content'), product_id=product_id)
-        # Format the datetime in the response
+        # Định dạng ngày giờ trong phản hồi
         formatted_date = c.created_date.strftime('%Y-%m-%d %H:%M:%S')
         return jsonify({
             "status": 200,
@@ -296,7 +296,7 @@ def import_products_route():
     if current_user.user_role not in [UserRole.ADMIN, UserRole.STAFF]:
         return jsonify({
             "status": 403,
-            "message": "You don't have permission to perform product imports"
+            "message": "Bạn không có quyền thực hiện nhập sản phẩm"
         }), 403
 
     if not request.is_json:
@@ -323,7 +323,7 @@ def import_products_route():
         if not isinstance(item['quantity'], int) or item['quantity'] <= 0:
             return jsonify({
                 "status": 400,
-                "message": "Quantity must be a positive integer"
+                "message": "Số lượng phải là số nguyên dương"
             }), 400
 
     success, message = dao.import_products(current_user.id, products_data)
@@ -344,7 +344,7 @@ def import_products_route():
 @login_required
 def import_interface():
     if current_user.user_role not in [UserRole.ADMIN, UserRole.STAFF]:
-        flash('You do not have permission to access this page', 'error')
+        flash('Bạn không có quyền truy cập trang này', 'error')
         return redirect(url_for('index'))
 
     products = Product.query.all()
@@ -357,7 +357,7 @@ def import_new_product():
     if current_user.user_role not in [UserRole.ADMIN, UserRole.STAFF]:
         return jsonify({
             "status": 403,
-            "message": "You don't have permission to perform product imports"
+            "message": "Bạn không có quyền thực hiện nhập sản phẩm"
         }), 403
 
     if not request.is_json:
@@ -383,12 +383,12 @@ def import_new_product():
         if quantity <= 0:
             return jsonify({
                 "status": 400,
-                "message": "Quantity must be a positive integer"
+                "message": "Số lượng phải là số nguyên dương"
             }), 400
         if quantity > 300:
             return jsonify({
                 "status": 400,
-                "message": "Initial quantity cannot exceed 300"
+                "message": "Số lượng không thể vượt quá 300"
             }), 400
 
         # Clean and validate price
@@ -397,15 +397,15 @@ def import_new_product():
             if price <= 0:
                 return jsonify({
                     "status": 400,
-                    "message": "Price must be a positive number"
+                    "message": "Giá phải là số dương"
                 }), 400
         except ValueError:
             return jsonify({
                 "status": 400,
-                "message": "Invalid price format"
+                "message": "Định dạng giá không hợp lệ"
             }), 400
 
-        # Create product data dictionary
+        # Tạo từ điển dữ liệu sản phẩm
         product_data = {
             'name': str(data['name']).strip(),
             'author': str(data['author']).strip(),
@@ -462,16 +462,16 @@ def profile():
 def update_profile():
     if request.method == 'POST':
         try:
-            # Update name
+            # Cập nhật tên
             current_user.name = request.form.get('name')
 
-            # Handle password change if provided
+            # Xử lý thay đổi mật khẩu nếu được cung cấp
             current_password = request.form.get('current_password')
             new_password = request.form.get('new_password')
             confirm_password = request.form.get('confirm_password')
 
             if current_password and new_password and confirm_password:
-                # Verify current password
+                # Xác minh mật khẩu hiện tại
                 if current_user.password == hashlib.md5(current_password.strip().encode('utf-8')).hexdigest():
                     if new_password == confirm_password:
                         current_user.password = hashlib.md5(new_password.strip().encode('utf-8')).hexdigest()
@@ -498,7 +498,7 @@ def update_avatar():
         try:
             avatar = request.files.get('avatar')
             if avatar:
-                # Upload to Cloudinary
+                # Upload Cloudinary
                 result = cloudinary.uploader.upload(avatar)
                 current_user.avatar = result.get('secure_url')
                 db.session.commit()

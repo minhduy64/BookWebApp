@@ -49,7 +49,7 @@ class Product(db.Model):
     price = Column(Float, default=0)
     image = Column(String(255), nullable=True)
     active = Column(Boolean, default=True)
-    category_id = Column(Integer, ForeignKey('category.id'), nullable=False)  # Fixed: Added table name
+    category_id = Column(Integer, ForeignKey('category.id'), nullable=False)
     quantity_in_stock = Column(Integer, default=0)
 
     # Relationships
@@ -70,7 +70,7 @@ class ProductImport(db.Model):
     total_quantity = Column(Integer, default=0)
     notes = Column(String(255))
 
-    # Remove duplicate staff relationship since it's defined in User class
+    # Relationships
     details = relationship('ProductImportDetail', backref='import_receipt', lazy=True,
                            cascade="all, delete-orphan")
 
@@ -122,12 +122,12 @@ class Order(db.Model):
                            cascade="all, delete-orphan")
 
     def calculate_pickup_deadline(self):
-        """Calculate pickup deadline based on order date"""
+        #Tính thời hạn nhận hàng dựa trên ngày đặt hàng
         if self.payment_method == PaymentMethod.STORE_PICKUP:
             self.pickup_deadline = self.order_date + timedelta(hours=48)
 
     def calculate_total(self):
-        """Calculate total order amount"""
+        #Tính tổng số tiền đặt hàng
         self.total_amount = sum(detail.price * detail.quantity for detail in self.details)
 
 

@@ -8,12 +8,12 @@ from app.models import UserRole, Category, Product, User, Order, OrderDetail
 from app import db, app, dao
 
 
-# Add Logout View
+#Logout View
 class LogoutView(BaseView):
     @expose('/')
     def index(self):
         logout_user()
-        flash('You have been logged out successfully.', 'success')
+        flash('Bạn đã đăng xuất thành công.', 'success')
         return redirect('/admin')
 
     def is_accessible(self):
@@ -25,7 +25,7 @@ class AuthenticatedView(ModelView):
         return current_user.is_authenticated and current_user.user_role in [UserRole.ADMIN, UserRole.STAFF]
 
     def inaccessible_callback(self, name, **kwargs):
-        flash('Please log in with appropriate privileges.', 'error')
+        flash('Vui lòng đăng nhập với đặc quyền.', 'error')
         return self.render('admin/index.html', categories=dao.stats_products())
 
 
@@ -83,10 +83,10 @@ class SecureAdminIndexView(AdminIndexView):
         return current_user.is_authenticated and current_user.user_role in [UserRole.ADMIN, UserRole.STAFF]
 
     def inaccessible_callback(self, name, **kwargs):
-        # Force logout of any existing session
+        # Buộc đăng xuất khỏi mọi phiên hiện có
         if current_user.is_authenticated:
             logout_user()
-        flash('Please log in with admin credentials to access this area.', 'warning')
+        flash('Vui lòng đăng nhập bằng quản trị viên để truy cập.', 'warning')
         return self.render('admin/index.html')
 
     @expose("/")
@@ -99,7 +99,7 @@ class ImportView(BaseView):
         return current_user.is_authenticated and current_user.user_role in [UserRole.ADMIN, UserRole.STAFF]
 
     def inaccessible_callback(self, name, **kwargs):
-        flash('Please log in with appropriate privileges to access this page.', 'error')
+        flash('Vui lòng đăng nhập bằng quản trị viên để truy cập.', 'error')
         return redirect(url_for('login'))
 
     @expose('/')

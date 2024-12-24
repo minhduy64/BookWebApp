@@ -1,4 +1,4 @@
-// Function to handle cart payments
+// Hàm xử lý thanh toán giỏ hàng
 function pay() {
     const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
     if (!paymentMethod) {
@@ -46,7 +46,6 @@ function pay() {
     }
 }
 
-// Keep other existing functions unchanged
 function addToCart(id, name, price, image) {
     fetch('/api/carts', {
         method: "POST",
@@ -65,7 +64,7 @@ function addToCart(id, name, price, image) {
             c.innerHTML = data.total_quantity;
     })
 }
-// Function to update cart item quantity
+// Chức năng cập nhật số lượng sản phẩm trong giỏ hàng
 function updateCart(id, obj) {
     fetch(`/api/carts/${id}`, {
         method: 'PUT',
@@ -78,7 +77,7 @@ function updateCart(id, obj) {
     }).then(res => res.json()).then(data => {
         updateCartInfo(data);
 
-        // Update line item subtotal
+        // Cập nhật tổng phụ của chi tiết đơn hàng
         const price = parseFloat(obj.getAttribute('data-price'));
         const quantity = parseInt(obj.value);
         const subtotal = price * quantity;
@@ -90,7 +89,7 @@ function updateCart(id, obj) {
     }).catch(err => console.error(err));
 }
 
-// Function to delete cart item
+// Hàm xóa sản phẩm trong giỏ hàng
 function deleteCart(id) {
     if (confirm('Bạn chắc chắn muốn xóa sản phẩm này?')) {
         fetch(`/api/carts/${id}`, {
@@ -105,7 +104,7 @@ function deleteCart(id) {
 }
 
 function updateCartInfo(data) {
-    // Update cart counter and total amount
+    // Cập nhật bộ đếm giỏ hàng và tổng số tiền
     let counter = document.getElementsByClassName('cart-counter');
     let amount = document.getElementsByClassName('cart-amount');
 
@@ -118,7 +117,7 @@ function updateCartInfo(data) {
 function addComment(productId) {
     const commentContent = document.getElementById("comment").value;
     if (!commentContent.trim()) {
-        alert("Please enter a comment");
+        alert("Vui lòng nhập bình luận");
         return;
     }
 
@@ -149,45 +148,45 @@ function addComment(productId) {
                 </div>
             `;
 
-            // Find the comments container
+            // Tìm comments container
             const commentsContainer = document.getElementById("comments-container");
 
-            // Check if there's a "no comments" message and remove it
+            // Kiểm tra xem có thông báo "không có bình luận" không và xóa nó
             const noCommentsMessage = commentsContainer.querySelector(".text-muted");
-            if (noCommentsMessage && noCommentsMessage.textContent.includes("No comments yet")) {
+            if (noCommentsMessage && noCommentsMessage.textContent.includes("Chưa có bình luận nào")) {
                 noCommentsMessage.remove();
             }
 
-            // Add new comment to the beginning of the comments list
+            // Thêm chú thích mới vào đầu danh sách chú thích
             commentsContainer.insertAdjacentHTML('afterbegin', commentHTML);
 
-            // Clear comment input
+            // Xóa comment input
             document.getElementById("comment").value = '';
 
-            // Add success message
+            // Thêm thông báo thành công
             const successMessage = document.createElement('div');
             successMessage.className = 'alert alert-success mt-2';
-            successMessage.textContent = 'Comment added successfully!';
+            successMessage.textContent = 'Đã thêm bình luận thành công!';
             document.getElementById("comment").parentNode.appendChild(successMessage);
 
-            // Fade out and remove the success message after 2 seconds
+            // Làm mờ dần và xóa thông báo thành công sau 2 giây
             setTimeout(() => {
                 successMessage.style.transition = 'opacity 0.5s';
                 successMessage.style.opacity = '0';
                 setTimeout(() => successMessage.remove(), 500);
             }, 2000);
         } else {
-            throw new Error(data.message || "Error adding comment");
+            throw new Error(data.message || "Lỗi khi thêm nhận xét");
         }
     })
     .catch(err => {
-        console.error("Error adding comment:", err);
-        alert("Error adding comment. Please try again.");
+        console.error("Lỗi khi thêm nhận xét:", err);
+        alert("Lỗi khi thêm nhận xét. Vui lòng thử lại.");
     });
 }
 
-//
-// Existing product import functionality
+
+// Chức năng nhập sản phẩm hiện có
 function addProductEntry() {
     const template = document.getElementById('productEntryTemplate');
     const clone = template.content.cloneNode(true);
@@ -219,7 +218,7 @@ function updateStockInfo(select) {
         const currentStock = parseInt(selectedOption.dataset.stock);
         const remainingCapacity = 300 - currentStock;
 
-        stockInfo.textContent = `Current stock: ${currentStock} | Max additional: ${remainingCapacity}`;
+        stockInfo.textContent = `Số lượng hiện tại ${currentStock} | Thêm tối đa: ${remainingCapacity}`;
         quantityInput.max = remainingCapacity;
         validateQuantity(quantityInput);
     } else {
@@ -234,10 +233,10 @@ function validateQuantity(input) {
     const max = parseInt(input.max);
 
     if (value <= 0) {
-        warning.textContent = 'Quantity must be greater than 0';
+        warning.textContent = 'Số lượng phải lớn hơn 0';
         return false;
     } else if (max && value > max) {
-        warning.textContent = `Maximum allowed quantity is ${max}`;
+        warning.textContent = `Số lượng tối đa cho phép là ${max}`;
         return false;
     } else {
         warning.textContent = '';
@@ -258,7 +257,7 @@ function updateTotalQuantity() {
     const totalDisplay = document.getElementById('totalQuantity');
     const indicator = document.getElementById('minQuantityIndicator');
 
-    totalDisplay.textContent = `Total: ${total}`;
+    totalDisplay.textContent = `Tổng cộng: ${total}`;
 
     if (total >= 150) {
         indicator.classList.remove('text-danger');
@@ -285,7 +284,7 @@ function handleImportSubmit(event) {
         const input = entry.querySelector('.quantity-input');
 
         if (!select.value) {
-            alert('Please select a product for all entries');
+            alert('Vui lòng chọn một sản phẩm cho tất cả các mục');
             isValid = false;
             return;
         }
@@ -305,12 +304,12 @@ function handleImportSubmit(event) {
     });
 
     if (!isValid) {
-        alert('Please correct the quantity errors before submitting.');
+        alert('Vui lòng sửa số lượng trước khi gửi.');
         return;
     }
 
     if (totalQuantity < 150) {
-        alert(`Total quantity must be at least 150. Current total: ${totalQuantity}`);
+        alert(`Tổng số lượng phải ít nhất là 150. Tổng số hiện tại: ${totalQuantity}`);
         return;
     }
 
@@ -330,18 +329,18 @@ function handleImportSubmit(event) {
     .then(response => response.json())
     .then(data => {
         if (data.status === 200) {
-            alert('Import successful!');
-            location.reload(); // Refresh the page to show updated quantities
+            alert('Nhập hàng thành công!');
+            location.reload(); // Làm mới trang để hiển thị số lượng cập nhật
         } else {
-            alert(data.message || 'Import failed. Please check the requirements.');
+            alert(data.message || 'Nhập hàng thất bại. Vui lòng kiểm tra các yêu cầu.');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred during import. Please try again.');
+        alert('Đã xảy ra lỗi trong quá trình nhập. Vui lòng thử lại.');
     })
     .finally(() => {
-        // Restore button state
+        // Khôi phục trạng thái nút
         submitButton.disabled = false;
         submitButton.innerHTML = originalButtonText;
     });
@@ -352,29 +351,29 @@ function handleNewProductSubmit(event) {
     const form = event.target;
     const formData = new FormData(form);
 
-    // Basic validations
+    // Xác thực cơ bản
     const quantity = parseInt(formData.get('quantity'));
     const price = parseFloat(formData.get('price').replace(/,/g, ''));
 
-    // Validate required fields
+    // Xác thực các trường bắt buộc
     if (!formData.get('name') || !formData.get('author') || !formData.get('category_id')) {
-        alert('Please fill in all required fields');
+        alert('Vui lòng điền vào tất cả các trường bắt buộc');
         return;
     }
 
-    // Validate quantity
+    // Xác thực số lượng
     if (isNaN(quantity) || quantity <= 0 || quantity > 300) {
-        alert('Quantity must be between 1 and 300');
+        alert('Số lượng phải từ 1 đến 300');
         return;
     }
 
-    // Validate price
+    // Xác thực giá
     if (isNaN(price) || price <= 0) {
-        alert('Please enter a valid price greater than 0');
+        alert('Vui lòng nhập giá hợp lệ lớn hơn 0');
         return;
     }
 
-    // Create the request payload
+    // Tạo request payload
     const payload = {
         name: formData.get('name').trim(),
         author: formData.get('author').trim(),
@@ -386,11 +385,11 @@ function handleNewProductSubmit(event) {
         image: formData.get('image') || ''
     };
 
-    // Show loading state
+    // Hiển thị trạng thái tải
     const submitButton = form.querySelector('button[type="submit"]');
     const originalButtonText = submitButton.innerHTML;
     submitButton.disabled = true;
-    submitButton.innerHTML = 'Importing...';
+    submitButton.innerHTML = 'Đang nhập...';
 
     fetch('/api/import/new', {
         method: 'POST',
@@ -402,34 +401,34 @@ function handleNewProductSubmit(event) {
     .then(response => response.json())
     .then(data => {
         if (data.status === 200) {
-            alert('New product imported successfully!');
+            alert('Sản phẩm mới được nhập hàng thành công!');
             location.reload();
         } else {
-            alert(data.message || 'Import failed. Please check the requirements.');
+            alert(data.message || 'Nhập hàng không thành công. Vui lòng kiểm tra các yêu cầu.');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred during import. Please try again.');
+        alert('Đã xảy ra lỗi trong quá trình nhập. Vui lòng thử lại.');
     })
     .finally(() => {
-        // Restore button state
+        // Khôi phục button state
         submitButton.disabled = false;
         submitButton.innerHTML = originalButtonText;
     });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize existing product import form
+    // Khởi tạo form import sản phẩm hiện có
     const importForm = document.getElementById('importForm');
     if (importForm) {
         importForm.addEventListener('submit', handleImportSubmit);
     }
 
-    // Add initial product entry
+    // Thêm mục nhập sản phẩm ban đầu
     addProductEntry();
 
-    // Initialize new product import form
+    // Khởi tạo form import sản phẩm mới
     const newProductForm = document.getElementById('newProductForm');
     if (newProductForm) {
         newProductForm.addEventListener('submit', handleNewProductSubmit);
