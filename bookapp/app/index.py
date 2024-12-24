@@ -2,14 +2,13 @@ import math
 from datetime import datetime, timedelta
 from flask import render_template, request, redirect, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
-import dao
 import utils
 from app import app, login, db
 from app.models import UserRole, User, Product, PaymentMethod, OrderDetail, OrderStatus, Order
 from flask import render_template, request, redirect, url_for, flash
 import cloudinary.uploader
 import hashlib
-
+from app import dao
 
 @app.route("/")
 def index():

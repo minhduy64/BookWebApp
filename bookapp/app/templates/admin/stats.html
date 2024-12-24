@@ -17,7 +17,7 @@
                             <th>STT</th>
                             <th>Tên sách </th>
                             <th>Doanh thu</th>
-                            <th>Số lần thuê</th>
+                            <th>Số lần mua</th>
                             <th>Tỉ lệ (%)</th>
                         </tr>
                     </thead>
@@ -101,9 +101,10 @@
                     <thead>
                         <tr>
                             <th>STT</th>
+                            <th>Tháng</th>
                             <th>Thể loại sách</th>
                             <th>Doanh Thu</th>
-                            <th>Số lượt thuê</th>
+                            <th>Số lần mua</th>
                             <th>Tỉ lệ (%)</th>
                         </tr>
                     </thead>
@@ -111,6 +112,7 @@
                         {% for s in month_category_stats %}
                         <tr>
                             <td>{{ loop.index }}</td>
+                            <td>{{ s[1] }}</td>
                             <td>{{ s[0] }}</td>
                             <td>{{ "{:,.0f}".format(s[2]) }} VND</td>
                             <td>{{ s[3] }}</td>
@@ -233,7 +235,7 @@ new Chart(ctx, {
         new Chart(ctx2, {
             type: 'pie',
             data: {
-                labels: mLabels,
+                labels:  mLabels.map(label => 'Tháng ' + label),
                 datasets: [{
                     label: '# Doanh thu tháng',
                     data: mData,

@@ -35,7 +35,7 @@ class AdminOnlyView(ModelView):
 
 
 class StaffProductView(AuthenticatedView):
-    column_list = ['id', 'name', 'price', 'quantity_in_stock', 'category']
+    column_list = ['id', 'name', 'category', 'price', 'quantity_in_stock']
     can_create = False
     can_delete = False
     column_searchable_list = ['name']
@@ -44,7 +44,7 @@ class StaffProductView(AuthenticatedView):
 
 
 class AdminProductView(AdminOnlyView):
-    column_list = ['id', 'name', 'price', 'category_id', 'author', 'quantity_in_stock']
+    column_list = ['id', 'name', 'category', 'price', 'category_id', 'author', 'quantity_in_stock']
     can_export = True
     column_searchable_list = ['name', 'author']
     column_filters = ['price', 'category_id', 'quantity_in_stock']
@@ -71,7 +71,11 @@ class StatsView(BaseView):
     def index(self):
         stats = dao.revenue_stats()
         month_stats = dao.revenue_month_stats()
-        return self.render('admin/stats.html', stats=stats, month_stats=month_stats)
+        month_category_stats = dao.revenue_month_stats_by_category()
+        return self.render('admin/stats.html',
+                         stats=stats,
+                         month_stats=month_stats,
+                         month_category_stats=month_category_stats)
 
 
 class SecureAdminIndexView(AdminIndexView):

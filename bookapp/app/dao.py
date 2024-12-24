@@ -13,6 +13,7 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 
 
+
 def load_categories():
     return Category.query.order_by('id').all()
 
@@ -79,12 +80,12 @@ def get_user_by_username(username):
     return User.query.get(username)
 
 
-def add_user(name, username, password, avatar=None):
+def add_user(name, username, password, email, avatar=None):
     if is_username_taken(username):
         return False, "Tên tài khoản đã tồn tại, hãy chọn tên tài khoản khác"
 
     password = str(hashlib.md5(password.strip().encode('utf-8')).hexdigest())
-    u = User(name=name, username=username, password=password)
+    u = User(name=name, username=username, password=password, email=email)
 
     if avatar:
         res = cloudinary.uploader.upload(avatar)
@@ -92,7 +93,7 @@ def add_user(name, username, password, avatar=None):
 
     db.session.add(u)
     db.session.commit()
-    return True, "Đăng ký tài khoản  thành công"
+    return True, "Đăng ký tài khoản thành công"
 
 
 def is_username_taken(username):

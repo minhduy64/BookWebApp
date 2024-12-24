@@ -15,6 +15,7 @@ class UserRole(RoleEnum):
 class User(db.Model, UserMixin):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(50))
+    email = Column(String(100), nullable=True)
     username = Column(String(50), nullable=False, unique=True)
     password = Column(String(50), nullable=False)
     avatar = Column(String(100),
@@ -160,6 +161,7 @@ if __name__ == '__main__':
 
             admin = User(
                 name='admin',
+                email='admin@gmail.com',
                 username='admin',
                 password=str(hashlib.md5('123456'.encode('utf-8')).hexdigest()),
                 user_role=UserRole.ADMIN
