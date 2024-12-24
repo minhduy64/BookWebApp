@@ -262,11 +262,11 @@ function updateTotalQuantity() {
     if (total >= 150) {
         indicator.classList.remove('text-danger');
         indicator.classList.add('text-success');
-        indicator.innerHTML = `<i class="fas fa-check-circle"></i> Min: 150`;
+        indicator.innerHTML = `<i class="fas fa-check-circle"></i>Tối thiểu: 150`;
     } else {
         indicator.classList.remove('text-success');
         indicator.classList.add('text-danger');
-        indicator.innerHTML = `<i class="fas fa-exclamation-circle"></i> Min: 150`;
+        indicator.innerHTML = `<i class="fas fa-exclamation-circle"></i>Tối thiểu: 150`;
     }
 }
 
